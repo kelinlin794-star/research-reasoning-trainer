@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
 import common
 import tutor
+import agent
 
 st.set_page_config(page_title="推理训练", page_icon="🧠", layout="wide")
 common.init_state()
@@ -277,6 +278,37 @@ def render_step(step_id, d):
         render_blocks_step(d)
 
 
+def render_coach():
+    """每一步底部的「问教练」答疑区：读者不懂就问，教练结合当前步骤解答，不打断主线。"""
+    st.divider()
+    st.markdown("### 有不懂的？问教练")
+
+    coach_key = f"coach_history_{st.session_state.paper_id}"
+    if coach_key not in st.session_state:
+        st.session_state[coach_key] = []
+    history = st.session_state[coach_key]
+
+    for msg in history:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    q = st.chat_input(f"这一步（{step_def['label']}）哪里不懂？")
+    if q:
+        api_key = common.get_api_key()
+        if not api_key:
+            st.warning("未配置 API Key，无法答疑。")
+        else:
+            history.append({"role": "user", "content": q})
+            with st.spinner("教练思考中..."):
+                try:
+                    reply = agent.coach_reply(paper, step_def["id"], history, api_key)
+                    history.append({"role": "assistant", "content": reply})
+                    st.session_state[coach_key] = history
+                except Exception as e:
+                    st.error(f"教练走神了：{e}")
+            st.rerun()
+
+
 def render_nav():
     st.divider()
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -310,6 +342,7 @@ def main():
     st.markdown(f"### 第 {step_idx + 1} 步 · {step_def['label']}")
 
     render_step(step_def["id"], step_data)
+    render_coach()
     render_nav()
 
 

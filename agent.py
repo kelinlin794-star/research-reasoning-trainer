@@ -8,6 +8,8 @@
 - 所有能力（解析、演进链、10 步训练、点评）都变成它可调用的技能。
 """
 
+import json
+
 import requests
 
 import lineage
@@ -69,12 +71,19 @@ COACH_SYSTEM = (
 )
 
 
-def coach_reply(paper: dict, history: list, api_key: str) -> str:
-    """教练回应：history 已含最新用户消息，返回教练的下一句话。
+def coach_reply(paper: dict, current_step_id: str, history: list, api_key: str) -> str:
+    """教练答疑：用户在 10 步的某一步遇到不懂的，结合「当前步骤内容」解答。
 
-    history 形如 [{"role": "user"/"assistant", "content": "..."}]。
+    history 形如 [{"role": "user"/"assistant", "content": "..."}]，已含最新用户消息。
     """
     context = build_coach_context(paper)
+
+    # 当前步骤的完整内容（让教练知道用户正在看什么、卡在哪）
+    step_data = paper.get("training", {}).get(current_step_id, {})
+    step_title = step_data.get("title", current_step_id)
+    step_brief = json.dumps(step_data, ensure_ascii=False)
+    if len(step_brief) > 2200:
+        step_brief = step_brief[:2200]
 
     # 取最后一条用户消息，判断是否在问「演进/前置」
     last_user = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
@@ -93,6 +102,7 @@ def coach_reply(paper: dict, history: list, api_key: str) -> str:
 
     messages = [
         {"role": "system", "content": COACH_SYSTEM + "\n\n【你手上这篇论文的背景】\n" + context
+         + f"\n\n【用户当前正在看的步骤：{step_title}】\n{step_brief}"
          + ("\n\n【额外资料】\n" + lineage_text if lineage_text else "")},
     ]
     messages += history

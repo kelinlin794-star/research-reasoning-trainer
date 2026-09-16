@@ -191,3 +191,27 @@ def parse_paper(pdf_bytes: bytes, api_key: str, style: str = "mixed") -> dict:
     validate(data)
     data["_style"] = style
     return data
+
+
+def restyle_paper(paper_data: dict, target_style: str, api_key: str) -> dict:
+    """把已解析论文的所有文本内容改写成目标语言风格（无需重新上传 PDF）。
+
+    保持 JSON 结构、字段名、evidence 枚举不变，只改写各文本字段的值。
+    """
+    style_inst = STYLE_INSTRUCTIONS.get(target_style, STYLE_INSTRUCTIONS["mixed"])
+
+    payload = {k: v for k, v in paper_data.items() if k != "_style"}
+    text = json.dumps(payload, ensure_ascii=False)
+
+    system = (
+        "你是语言风格改写专家。把下面这个 JSON 里所有「文本值」改写为指定的语言风格。"
+        "必须保持：JSON 结构、所有字段名、以及 evidence 等枚举取值完全不变，只改写各文本字段的值。"
+        "只输出改写后的 JSON，不要任何解释、不要 markdown 代码块。"
+    )
+    user = f"目标语言风格：{style_inst}\n\n原始 JSON：\n{text}"
+
+    content = call_deepseek(system, user, api_key)
+    data = json.loads(strip_code_fence(content))
+    validate(data)
+    data["_style"] = target_style
+    return data

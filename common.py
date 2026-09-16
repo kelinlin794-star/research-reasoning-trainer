@@ -66,14 +66,14 @@ def list_papers():
             if fn.endswith(".json"):
                 with open(os.path.join(DATA_DIR, fn), "r", encoding="utf-8") as f:
                     data = json.load(f)
-                papers.append({"id": data["id"], "meta": data.get("meta", {}), "dynamic": False})
+                papers.append({"id": data["id"], "meta": data.get("meta", {}), "dynamic": False, "style": data.get("_style", "mixed")})
     # 上传的论文（data/uploaded/ 子目录，持久化，刷新/重启不丢）
     if os.path.isdir(UPLOADED_DIR):
         for fn in sorted(os.listdir(UPLOADED_DIR)):
             if fn.endswith(".json"):
                 with open(os.path.join(UPLOADED_DIR, fn), "r", encoding="utf-8") as f:
                     data = json.load(f)
-                papers.append({"id": data["id"], "meta": data.get("meta", {}), "dynamic": True})
+                papers.append({"id": data["id"], "meta": data.get("meta", {}), "dynamic": True, "style": data.get("_style", "mixed")})
     return papers
 
 
@@ -222,6 +222,18 @@ def save_dynamic_paper(paper_data):
         json.dump(paper_data, f, ensure_ascii=False, indent=2)
 
     # 同时存内存，供当前会话快速访问
+    st.session_state.dynamic_papers[pid] = paper_data
+    return pid
+
+
+def overwrite_paper(paper_data):
+    """原地覆盖保存论文数据（id 不变），用于语言切换等更新。"""
+    pid = paper_data["id"]
+    upath = os.path.join(UPLOADED_DIR, f"{pid}.json")
+    os.makedirs(UPLOADED_DIR, exist_ok=True)
+    with open(upath, "w", encoding="utf-8") as f:
+        json.dump(paper_data, f, ensure_ascii=False, indent=2)
+    # 同步内存（覆盖 load 顺序，让语言切换立即生效）
     st.session_state.dynamic_papers[pid] = paper_data
     return pid
 

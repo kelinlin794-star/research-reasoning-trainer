@@ -64,7 +64,7 @@ def render_upload():
                         st.error(f"解析失败：{e}")
 
 
-def render_paper_card(pid, meta, is_dynamic=False):
+def render_paper_card(pid, meta, is_dynamic=False, style="mixed"):
     with st.container(border=True):
         col_l, col_r = st.columns([3, 1])
         with col_l:
@@ -83,8 +83,31 @@ def render_paper_card(pid, meta, is_dynamic=False):
             if tags:
                 st.markdown(tags)
         with col_r:
-            st.write("")
-            st.write("")
+            style_map = {"中英结合": "mixed", "纯中文": "zh", "纯英文": "en"}
+            rev_map = {v: k for k, v in style_map.items()}
+            cur_label = rev_map.get(style, "中英结合")
+            new_label = st.selectbox(
+                "语言",
+                list(style_map.keys()),
+                index=list(style_map.keys()).index(cur_label),
+                key=f"style_sel_{pid}",
+                label_visibility="collapsed",
+            )
+            if new_label != cur_label:
+                if st.button("切换语言", key=f"restyle_{pid}", use_container_width=True):
+                    api_key = common.get_api_key()
+                    if not api_key:
+                        st.error("未配置 API Key。")
+                    else:
+                        with st.spinner("正在切换语言（约 30~60 秒）..."):
+                            try:
+                                paper = common.load_paper(pid)
+                                new_paper = parser.restyle_paper(paper, style_map[new_label], api_key)
+                                common.overwrite_paper(new_paper)
+                                st.success("已切换语言。")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"切换失败：{e}")
             if st.button("开始训练", key=f"start_{pid}", type="primary", use_container_width=True):
                 common.start_paper(pid)
                 st.switch_page("pages/1_推理训练.py")
@@ -105,7 +128,7 @@ def main():
     st.markdown("### 选择一篇论文开始训练")
     st.caption(f"当前共 {len(papers)} 篇论文。每一篇都走一遍完整的 10 步推理闭环。")
     for p in papers:
-        render_paper_card(p["id"], p["meta"], is_dynamic=p.get("dynamic", False))
+        render_paper_card(p["id"], p["meta"], is_dynamic=p.get("dynamic", False), style=p.get("style", "mixed"))
 
     st.divider()
     st.info(

@@ -4,3 +4,5 @@ __pycache__/
 venv/
 .streamlit/secrets.toml
 *.log
+_test_result.json
+test_parser.py

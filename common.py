@@ -54,20 +54,26 @@ STEPS = [
 # 数据加载
 # ---------------------------------------------------------------------------
 def list_papers():
-    """扫描 data/ 目录，返回所有论文的 {id, meta} 列表。"""
+    """返回所有可用论文的 {id, meta} 列表（预置 + 用户上传的动态论文）。"""
     papers = []
-    if not os.path.isdir(DATA_DIR):
-        return papers
-    for fn in sorted(os.listdir(DATA_DIR)):
-        if fn.endswith(".json"):
-            with open(os.path.join(DATA_DIR, fn), "r", encoding="utf-8") as f:
-                data = json.load(f)
-            papers.append({"id": data["id"], "meta": data.get("meta", {})})
+    # 预置论文（data/ 目录）
+    if os.path.isdir(DATA_DIR):
+        for fn in sorted(os.listdir(DATA_DIR)):
+            if fn.endswith(".json"):
+                with open(os.path.join(DATA_DIR, fn), "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                papers.append({"id": data["id"], "meta": data.get("meta", {}), "dynamic": False})
+    # 动态论文（本次会话上传解析的）
+    for pid, data in st.session_state.get("dynamic_papers", {}).items():
+        papers.append({"id": pid, "meta": data.get("meta", {}), "dynamic": True})
     return papers
 
 
 def load_paper(paper_id):
-    """按 id 加载单篇论文的完整训练数据。"""
+    """按 id 加载单篇论文的完整训练数据（优先动态论文，其次预置 JSON）。"""
+    dyn = st.session_state.get("dynamic_papers", {})
+    if paper_id in dyn:
+        return dyn[paper_id]
     path = os.path.join(DATA_DIR, f"{paper_id}.json")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -115,10 +121,20 @@ def init_state():
         "guess_choice": None,      # 用户在「先猜」步的选择
         "limitation_choice": None, # 用户在「找局限」步的选择
         "notes": {},               # 去魅笔记 {paper_id: [str, ...]}
+        "dynamic_papers": {},      # 用户上传解析的动态论文 {paper_id: paper_data}
     }
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
+
+
+def save_dynamic_paper(paper_data):
+    """把上传解析出的论文存入会话，使其可被训练流程加载。"""
+    pid = paper_data.get("id") or f"uploaded_{len(st.session_state.dynamic_papers) + 1}"
+    paper_data["id"] = pid
+    paper_data["_dynamic"] = True
+    st.session_state.dynamic_papers[pid] = paper_data
+    return pid
 
 
 def start_paper(paper_id):

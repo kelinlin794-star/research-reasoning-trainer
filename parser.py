@@ -1,0 +1,166 @@
+# -*- coding: utf-8 -*-
+"""
+论文自动解析模块 —— 把任意 PDF 论文拆解成「科研训练数据」。
+
+流程：提取 PDF 文本 → 调用 DeepSeek 大模型 → 输出结构化 JSON → 校验。
+生成的 JSON 结构与 data/ 下的预置论文完全一致，可直接进入 7 步训练流程。
+"""
+
+import io
+import json
+import re
+
+import requests
+from pypdf import PdfReader
+
+# ---------------------------------------------------------------------------
+# DeepSeek 配置（兼容 OpenAI 风格的 REST 调用）
+# ---------------------------------------------------------------------------
+DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
+MODEL = "deepseek-chat"
+
+# ---------------------------------------------------------------------------
+# 系统提示词：定义角色、原则、输出 JSON 结构
+# ---------------------------------------------------------------------------
+SYSTEM_PROMPT = """你是一位资深的科研方法解构专家，擅长把论文从「最终成品」还原成「问题解决的过程」。
+
+## 三条铁律（必须遵守）
+1. 不神化创作者：把创新还原成「面对约束 → 测量系统 → 发现瓶颈 → 提出方案」的工程决策，而不是天才灵光一现。
+2. 不做术语堆砌：坚持「问题 → 需求 → 概念 → 方法」的逻辑链条，讲清为什么需要，而不是干巴巴下定义。
+3. 严格证据分层：每条内容都要带 evidence 字段，取值只能是以下三种之一：
+   - "stated"：论文明确陈述的内容
+   - "reconstructed"：根据论文方法/实验合理重建的推断
+   - "unknown"：论文未提及、无法确定的内容
+   凡是推断都必须标 "reconstructed"，绝不允许假装读心作者的真实想法。
+
+## 任务
+阅读用户提供的论文全文，输出一个 JSON 对象（只输出 JSON 本身，不要任何解释文字、不要 markdown 代码块标记）。JSON 结构如下：
+
+{
+  "id": "英文短id",
+  "meta": {
+    "title": "论文标题",
+    "subtitle": "一句话概括核心贡献",
+    "authors": "作者",
+    "affiliation": "机构",
+    "year": 2025,
+    "arxiv": "arXiv编号或空字符串",
+    "field": "研究领域",
+    "difficulty": "入门/进阶/专家",
+    "tags": ["标签1", "标签2"]
+  },
+  "training": {
+    "scenario": {"title": "现实问题", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "guess": {
+      "title": "先猜", "intro": "引导语",
+      "constraints": ["约束1", "约束2"],
+      "scaffold": [{"id": "a", "text": "选项A", "correct": false, "why": "为什么不对"}]
+    },
+    "solution": {"title": "看作者方案", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "method": {"title": "拆解方法", "intro": "引导语", "layers": [{"name": "约束", "blocks": [{"evidence": "stated", "text": "内容"}]}]},
+    "experiment": {"title": "看实验验证", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "limitation": {
+      "title": "找局限", "intro": "引导语",
+      "scaffold": [{"id": "a", "text": "可能的局限A", "valid": true, "why": "说明"}],
+      "author_limitations": [{"evidence": "stated", "text": "论文自己承认的局限"}]
+    },
+    "demystify": {"title": "去魅", "intro": "引导语", "chain": [{"stage": "约束", "text": "内容"}], "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "history": {"title": "回归历史演进", "intro": "引导语"}
+  },
+  "timeline_domain": [{"year": "时间", "title": "标题", "text": "内容", "evidence": "stated"}],
+  "timeline_tech": [{"year": "时间", "title": "标题", "text": "内容", "evidence": "stated"}]
+}
+
+## 字段要点
+- guess.scaffold：给 3~4 个选项，只有 1 个 correct=true（作者真实路线），其余是易混淆的干扰项，每个选项都要有 why 说明。guess.constraints 只给「作者面对的约束」，绝不能泄露答案。
+- method.layers：通常按「约束 / 测量 / 瓶颈 / 方案」四层展开（可按论文实际情况调整层数与命名）。
+- limitation.scaffold：给 3~4 个可能的局限，用 valid 标对错；author_limitations 是论文自己承认的局限。
+- demystify.chain：还原「约束 → 测量 → 瓶颈 → 方案」的工程决策链，3~5 个环节。
+- timeline_domain：领域问题演进线，3~5 条；timeline_tech：技术演进线，3~5 条。
+- 所有中文内容必须准确、具体、基于论文事实，杜绝空洞套话。""".strip()
+
+
+# ---------------------------------------------------------------------------
+# 文本提取
+# ---------------------------------------------------------------------------
+def extract_pdf_text(pdf_bytes: bytes) -> str:
+    """从 PDF 字节流提取全文。"""
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    parts = []
+    for page in reader.pages:
+        t = page.extract_text() or ""
+        if t.strip():
+            parts.append(t)
+    return "\n\n".join(parts)
+
+
+def build_user_prompt(text: str) -> str:
+    """构造用户提示词，限制输入长度避免超上下文。"""
+    max_chars = 60000
+    if len(text) > max_chars:
+        text = text[:max_chars] + "\n\n[论文过长，后续内容已截断]"
+    return f"请把下面这篇论文拆解成训练数据（严格按 system 里给定的 JSON 结构输出）：\n\n<论文全文>\n{text}\n</论文全文>"
+
+
+# ---------------------------------------------------------------------------
+# JSON 清洗与校验
+# ---------------------------------------------------------------------------
+def strip_code_fence(s: str) -> str:
+    """去掉 LLM 可能包裹的 markdown 代码块、定位到 JSON 主体。"""
+    s = s.strip()
+    m = re.search(r"```(?:json)?\s*(.*?)```", s, re.DOTALL)
+    if m:
+        s = m.group(1).strip()
+    start = s.find("{")
+    end = s.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        s = s[start:end + 1]
+    return s
+
+
+def validate(data: dict):
+    """校验解析结果是否包含训练流程所需的全部关键字段。"""
+    required = ["meta", "training", "timeline_domain", "timeline_tech"]
+    for k in required:
+        if k not in data:
+            raise ValueError(f"解析结果缺少字段：{k}")
+    steps = ["scenario", "guess", "solution", "method", "experiment", "limitation", "demystify", "history"]
+    for s in steps:
+        if s not in data["training"]:
+            raise ValueError(f"训练数据缺少阶段：{s}")
+
+
+# ---------------------------------------------------------------------------
+# 主入口
+# ---------------------------------------------------------------------------
+def call_deepseek(system: str, user: str, api_key: str) -> str:
+    resp = requests.post(
+        DEEPSEEK_URL,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": MODEL,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.4,
+            "max_tokens": 8192,
+        },
+        timeout=180,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return data["choices"][0]["message"]["content"]
+
+
+def parse_paper(pdf_bytes: bytes, api_key: str) -> dict:
+    """把 PDF 论文拆解为训练数据字典。"""
+    text = extract_pdf_text(pdf_bytes)
+    if len(text.strip()) < 200:
+        raise ValueError("PDF 文本提取失败或内容过少。请确认是文字版 PDF（扫描图片版暂不支持）。")
+
+    content = call_deepseek(SYSTEM_PROMPT, build_user_prompt(text), api_key)
+    data = json.loads(strip_code_fence(content))
+    validate(data)
+    return data

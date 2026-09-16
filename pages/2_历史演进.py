@@ -8,6 +8,7 @@
 
 import os
 import sys
+import html
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -54,26 +55,63 @@ if st.button("构建演进链", type="primary"):
                     st.error(f"构建失败：{e}")
 
 
-def render_lineage_result(r):
-    st.markdown("#### 演进链叙事")
-    st.info(r.get("lineage", ""))
+def _paper_card(title, year, cited, bg, border, fg):
+    """生成一张论文小卡片（HTML）。"""
+    t = html.escape(title if len(title) <= 26 else title[:26] + "…")
+    return (
+        f'<div style="background:{bg};border:1px solid {border};border-radius:10px;'
+        f'padding:10px 12px;width:150px;text-align:center;">'
+        f'<div style="font-size:13px;font-weight:500;color:{fg};line-height:1.4;">{t}</div>'
+        f'<div style="font-size:11px;color:#5F5E5A;margin-top:5px;">{year} · 被引 {cited}</div>'
+        f'</div>'
+    )
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown("**前置工作**")
-        for n in r.get("predecessors", []):
-            st.markdown(f"- {n['title']}（{n['year']}）")
-    with c2:
-        st.markdown("**当前论文**")
-        cur = r.get("current")
-        if cur:
-            st.markdown(f"- {cur['title']}（{cur['year']}）")
-        else:
-            st.caption("（未检索到）")
-    with c3:
-        st.markdown("**后续工作**")
-        for n in r.get("citations", []):
-            st.markdown(f"- {n['title']}（{n['year']}）")
+
+def _label(text):
+    return f'<div style="text-align:center;font-size:12px;color:#5F5E5A;margin:2px 0 6px;">{text}</div>'
+
+
+def _arrow():
+    return '<div style="text-align:center;color:#888780;font-size:20px;line-height:1;margin:4px 0;">▼</div>'
+
+
+def render_lineage_result(r):
+    pred = r.get("predecessors", [])
+    cur = r.get("current")
+    cites = r.get("citations", [])
+
+    pred_html = "".join(
+        _paper_card(n["title"], n["year"], n["cited_by_count"], "#E6F1FB", "#185FA5", "#0C447C")
+        for n in pred
+    ) or '<div style="color:#5F5E5A;font-size:13px;">（未检索到）</div>'
+
+    cur_html = (
+        _paper_card(cur["title"], cur["year"], cur["cited_by_count"], "#E1F5EE", "#0F6E56", "#085041")
+        if cur else '<div style="color:#5F5E5A;font-size:13px;">（未检索到）</div>'
+    )
+
+    cite_html = "".join(
+        _paper_card(n["title"], n["year"], n["cited_by_count"], "#EEEDFE", "#534AB7", "#3C3489")
+        for n in cites
+    ) or '<div style="color:#5F5E5A;font-size:13px;">（未检索到）</div>'
+
+    st.markdown("#### 演进链全景")
+    html_block = (
+        f'<div style="font-family:sans-serif;padding:8px 0;">'
+        f'{_label("前置工作（它建立在什么之上）")}'
+        f'<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">{pred_html}</div>'
+        f'{_arrow()}'
+        f'{_label("当前论文")}'
+        f'<div style="display:flex;justify-content:center;">{cur_html}</div>'
+        f'{_arrow()}'
+        f'{_label("后续工作（谁在它基础上继续）")}'
+        f'<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">{cite_html}</div>'
+        f'</div>'
+    )
+    st.markdown(html_block, unsafe_allow_html=True)
+
+    with st.expander("查看演进链完整叙事（文字版）"):
+        st.write(r.get("lineage", ""))
 
 
 if st.session_state.get("lineage_result"):

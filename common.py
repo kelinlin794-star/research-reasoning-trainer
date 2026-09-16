@@ -22,6 +22,7 @@ import streamlit as st
 # ---------------------------------------------------------------------------
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(ROOT, "data")
+UPLOADED_DIR = os.path.join(DATA_DIR, "uploaded")  # 用户上传解析的论文持久化目录
 
 # ---------------------------------------------------------------------------
 # 证据分层定义（颜色 = 徽标配色）
@@ -57,26 +58,34 @@ STEPS = [
 # 数据加载
 # ---------------------------------------------------------------------------
 def list_papers():
-    """返回所有可用论文的 {id, meta} 列表（预置 + 用户上传的动态论文）。"""
+    """返回所有可用论文的 {id, meta} 列表（预置 + 用户上传持久化的动态论文）。"""
     papers = []
-    # 预置论文（data/ 目录）
+    # 预置论文（data/ 根目录）
     if os.path.isdir(DATA_DIR):
         for fn in sorted(os.listdir(DATA_DIR)):
             if fn.endswith(".json"):
                 with open(os.path.join(DATA_DIR, fn), "r", encoding="utf-8") as f:
                     data = json.load(f)
                 papers.append({"id": data["id"], "meta": data.get("meta", {}), "dynamic": False})
-    # 动态论文（本次会话上传解析的）
-    for pid, data in st.session_state.get("dynamic_papers", {}).items():
-        papers.append({"id": pid, "meta": data.get("meta", {}), "dynamic": True})
+    # 上传的论文（data/uploaded/ 子目录，持久化，刷新/重启不丢）
+    if os.path.isdir(UPLOADED_DIR):
+        for fn in sorted(os.listdir(UPLOADED_DIR)):
+            if fn.endswith(".json"):
+                with open(os.path.join(UPLOADED_DIR, fn), "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                papers.append({"id": data["id"], "meta": data.get("meta", {}), "dynamic": True})
     return papers
 
 
 def load_paper(paper_id):
-    """按 id 加载单篇论文的完整训练数据（优先动态论文，其次预置 JSON）。"""
+    """按 id 加载单篇论文（优先内存动态论文，其次磁盘 uploaded/，最后预置 data/）。"""
     dyn = st.session_state.get("dynamic_papers", {})
     if paper_id in dyn:
         return dyn[paper_id]
+    upath = os.path.join(UPLOADED_DIR, f"{paper_id}.json")
+    if os.path.exists(upath):
+        with open(upath, "r", encoding="utf-8") as f:
+            return json.load(f)
     path = os.path.join(DATA_DIR, f"{paper_id}.json")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -132,10 +141,23 @@ def init_state():
 
 
 def save_dynamic_paper(paper_data):
-    """把上传解析出的论文存入会话，使其可被训练流程加载。"""
-    pid = paper_data.get("id") or f"uploaded_{len(st.session_state.dynamic_papers) + 1}"
+    """把上传解析出的论文持久化到磁盘（data/uploaded/），刷新/重启/切换页面都不丢。"""
+    import time
+
+    base = (paper_data.get("id") or "uploaded").strip() or "uploaded"
+    pid = base
+    # 避免覆盖已有文件（同名则加时间戳）
+    if os.path.exists(os.path.join(UPLOADED_DIR, f"{pid}.json")):
+        pid = f"{base}_{int(time.time())}"
+
     paper_data["id"] = pid
     paper_data["_dynamic"] = True
+
+    os.makedirs(UPLOADED_DIR, exist_ok=True)
+    with open(os.path.join(UPLOADED_DIR, f"{pid}.json"), "w", encoding="utf-8") as f:
+        json.dump(paper_data, f, ensure_ascii=False, indent=2)
+
+    # 同时存内存，供当前会话快速访问
     st.session_state.dynamic_papers[pid] = paper_data
     return pid
 

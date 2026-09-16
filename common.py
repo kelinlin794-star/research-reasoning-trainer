@@ -122,6 +122,54 @@ def render_evidence_legend():
 
 
 # ---------------------------------------------------------------------------
+# 演进链可视化（前置 → 当前 → 后续 的卡片图）
+# ---------------------------------------------------------------------------
+def _paper_card(title, year, cited, bg, border, fg):
+    """生成一张论文小卡片（HTML）。"""
+    import html as _html
+    t = _html.escape(title if len(title) <= 26 else title[:26] + "…")
+    return (
+        f'<div style="background:{bg};border:1px solid {border};border-radius:10px;'
+        f'padding:10px 12px;width:150px;text-align:center;">'
+        f'<div style="font-size:13px;font-weight:500;color:{fg};line-height:1.4;">{t}</div>'
+        f'<div style="font-size:11px;color:#5F5E5A;margin-top:5px;">{year} · 被引 {cited}</div>'
+        f'</div>'
+    )
+
+
+def render_lineage_cards(result: dict):
+    """渲染演进链全景卡片图：前置（蓝）→ 当前（绿）→ 后续（紫）。"""
+    pred = result.get("predecessors", [])
+    cur = result.get("current")
+    cites = result.get("citations", [])
+
+    def _row(items, bg, border, fg):
+        if not items:
+            return '<div style="color:#5F5E5A;font-size:13px;text-align:center;">（未检索到）</div>'
+        cards = "".join(_paper_card(n["title"], n["year"], n["cited_by_count"], bg, border, fg) for n in items)
+        return f'<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">{cards}</div>'
+
+    def _label(text):
+        return f'<div style="text-align:center;font-size:12px;color:#5F5E5A;margin:2px 0 6px;">{text}</div>'
+
+    arrow = '<div style="text-align:center;color:#888780;font-size:20px;line-height:1;margin:4px 0;">▼</div>'
+
+    html_block = (
+        '<div style="font-family:sans-serif;padding:8px 0;">'
+        + _label("前置工作（它建立在什么之上）")
+        + _row(pred, "#E6F1FB", "#185FA5", "#0C447C")
+        + arrow
+        + _label("当前论文")
+        + _row([cur] if cur else [], "#E1F5EE", "#0F6E56", "#085041")
+        + arrow
+        + _label("后续工作（谁在它基础上继续）")
+        + _row(cites, "#EEEDFE", "#534AB7", "#3C3489")
+        + '</div>'
+    )
+    st.markdown(html_block, unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
 # 会话状态管理
 # ---------------------------------------------------------------------------
 def init_state():

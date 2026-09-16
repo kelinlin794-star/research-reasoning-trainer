@@ -24,6 +24,7 @@ import streamlit as st
 import common
 import tutor
 import agent
+import lineage
 
 st.set_page_config(page_title="推理训练", page_icon="🧠", layout="wide")
 common.init_state()
@@ -80,9 +81,37 @@ def render_sidebar():
 # 各步骤渲染
 # ---------------------------------------------------------------------------
 def render_blocks_step(d):
-    """通用步骤：intro + blocks（用于 why_read / prior_work / prior_limits / position / experiment / future）。"""
+    """通用步骤：intro + blocks（用于 why_read / prior_work / prior_limits / experiment / future）。"""
     st.markdown(d["intro"])
     common.render_blocks(d.get("blocks", []))
+
+
+def render_position(d):
+    """第 4 步「这篇论文处在哪」：内容 + 自动构建演进链（前置→当前→后续）。"""
+    st.markdown(d["intro"])
+    common.render_blocks(d.get("blocks", []))
+
+    st.divider()
+    st.markdown("**看它的演进链全景**")
+    api_key = common.get_api_key()
+    fb_key = f"lineage_{st.session_state.paper_id}"
+
+    if st.button("构建这篇论文的演进链"):
+        if not api_key:
+            st.warning("未配置 API Key，无法构建。")
+        else:
+            with st.spinner("正在检索文献并构建演进链（约 1~2 分钟）..."):
+                try:
+                    result = lineage.build_lineage(meta["title"], meta.get("subtitle", ""), api_key)
+                    st.session_state[fb_key] = result
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"构建失败：{e}")
+
+    if st.session_state.get(fb_key):
+        common.render_lineage_cards(st.session_state[fb_key])
+        with st.expander("查看演进链完整叙事"):
+            st.write(st.session_state[fb_key].get("lineage", ""))
 
 
 def render_guess(d):
@@ -269,6 +298,8 @@ def render_step(step_id, d):
                 st.rerun()
         else:
             render_solution(d)
+    elif step_id == "position":
+        render_position(d)
     elif step_id == "limitation":
         render_limitation(d)
     elif step_id == "next_question":

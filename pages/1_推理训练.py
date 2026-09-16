@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-推理训练页 —— 7 步闭环的核心向导。
+推理训练页 —— 10 步闭环的核心向导。
 
-这是整个产品的心脏：用户沿着
-  现实问题 → 先猜 → 看作者方案 → 拆解方法 → 看实验验证 → 找局限 → 去魅 → 回归历史演进
-一步步走完，每一步都有「防剧透」门控——没提交猜想，就看不到作者的方案。
+这是整个产品的心脏。用户沿着
+  为什么值得读 → 以前怎么解决 → 为什么以前不够 → 这篇论文处在哪
+  → 如果是你，你会怎么办 → 作者怎么解决 → 实验到底证明了什么
+  → 还有什么问题 → 后续论文怎么继续 → 下一个研究问题是什么
+一步步走完。「防剧透」门控：没提交猜想，就看不到「作者怎么解决」。
 
 状态依赖（跨页面共享，见 common.init_state）：
 - paper_id / step_index       当前论文与步骤
-- guess_submitted             是否已提交猜想（解锁「看作者方案」）
+- guess_submitted             是否已提交猜想（解锁「作者怎么解决」）
 - limitation_submitted        是否已提交局限分析（解锁「作者自评」）
 """
 
@@ -42,6 +44,14 @@ step_data = training[step_def["id"]]
 
 
 # ---------------------------------------------------------------------------
+# 工具函数
+# ---------------------------------------------------------------------------
+def material_safe(text):
+    """把内容里的 `<` `>` 转义，避免被当成 HTML 标签。"""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+# ---------------------------------------------------------------------------
 # 侧边栏：证据图例 + 步骤进度
 # ---------------------------------------------------------------------------
 def render_sidebar():
@@ -67,9 +77,10 @@ def render_sidebar():
 # ---------------------------------------------------------------------------
 # 各步骤渲染
 # ---------------------------------------------------------------------------
-def render_scenario(d):
+def render_blocks_step(d):
+    """通用步骤：intro + blocks（用于 why_read / prior_work / prior_limits / position / experiment / future）。"""
     st.markdown(d["intro"])
-    common.render_blocks(d["blocks"])
+    common.render_blocks(d.get("blocks", []))
 
 
 def render_guess(d):
@@ -99,7 +110,7 @@ def render_guess(d):
             mine = "（← 你的选择）" if is_chosen else ""
             color = "#0F6E56" if is_correct else "#A32D2D"
             st.markdown(
-                f'<span style="color:{color};font-weight:500;">{tag}</span> {s["text"]}'
+                f'<span style="color:{color};font-weight:500;">{tag}</span> {material_safe(s["text"])}'
                 f'<span style="color:#5F5E5A;">{mine}</span><br>'
                 f'<span style="color:#5F5E5A;font-size:13px;">　{material_safe(s["why"])}</span>',
                 unsafe_allow_html=True,
@@ -110,26 +121,16 @@ def render_guess(d):
         st.info(correct["text"] + "　" + correct["why"])
 
 
-def material_safe(text):
-    """把内容里的 `<` `>` 转义，避免被当成 HTML 标签。"""
-    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-
 def render_solution(d):
     st.markdown(d["intro"])
-    common.render_blocks(d["blocks"])
-
-
-def render_method(d):
-    st.markdown(d["intro"])
-    for i, layer in enumerate(d["layers"]):
-        with st.expander(f"{i + 1}. {layer['name']}", expanded=(i == 0)):
-            common.render_blocks(layer["blocks"])
-
-
-def render_experiment(d):
-    st.markdown(d["intro"])
-    common.render_blocks(d["blocks"])
+    # 工程决策链（去魅：把创新还原成 约束→测量→瓶颈→方案）
+    chain = d.get("chain", [])
+    if chain:
+        st.markdown("**作者的工程决策链：**")
+        for i, item in enumerate(chain):
+            st.markdown(f"**{i + 1}. {item['stage']}**：{material_safe(item['text'])}")
+        st.divider()
+    common.render_blocks(d.get("blocks", []))
 
 
 def render_limitation(d):
@@ -167,45 +168,54 @@ def render_limitation(d):
         common.render_blocks(d["author_limitations"])
 
 
-def render_demystify(d):
+def render_next_question(d):
     st.markdown(d["intro"])
-    for i, item in enumerate(d["chain"]):
-        st.markdown(f"**{i + 1}. {item['stage']}**：{material_safe(item['text'])}")
+    prompts = d.get("prompts", [])
+    if prompts:
+        st.markdown("**可以从这些角度想：**")
+        for p in prompts:
+            st.markdown(f"- {p}")
+    if d.get("blocks"):
+        st.divider()
+        common.render_blocks(d["blocks"])
+
     st.divider()
-    common.render_blocks(d["blocks"])
-
-
-def render_history(d):
-    st.markdown(d["intro"])
-    st.write("")
-    if st.button("前往「历史演进」页，看三条时间线", type="primary"):
-        st.switch_page("pages/2_历史演进.py")
+    st.markdown("**你的下一个研究问题：**")
+    q = st.text_area(
+        "试着写下一个你想研究的问题（一句话即可）",
+        key="next_q_input",
+        placeholder="例：能不能让这套优化方法在换硬件时自动重调，而不是每次手调 kernel？",
+    )
+    if st.button("保存我的研究问题", type="primary"):
+        if q.strip():
+            pid = st.session_state.paper_id
+            notes = st.session_state.notes.setdefault(pid, [])
+            notes.append("【研究问题】" + q.strip())
+            st.session_state.notes[pid] = notes
+            st.success("已保存到「去魅档案」！")
+        else:
+            st.warning("先写点东西再保存吧。")
 
 
 def render_step(step_id, d):
-    if step_id == "scenario":
-        render_scenario(d)
-    elif step_id == "guess":
+    if step_id == "guess":
         render_guess(d)
     elif step_id == "solution":
         # 门控：必须先提交猜想
         if not st.session_state.guess_submitted:
-            st.warning("这一页是「作者的方案」，请先完成上一步「先猜」，提交你的猜想后再来看答案。")
-            if st.button("← 回到「先猜」"):
-                st.session_state.step_index = 1
+            st.warning("这一步是「作者怎么解决」，请先完成上一步「如果是你，你会怎么办」，提交你的猜想后再来看答案。")
+            if st.button("← 回到「如果是你」"):
+                st.session_state.step_index = 4
                 st.rerun()
         else:
             render_solution(d)
-    elif step_id == "method":
-        render_method(d)
-    elif step_id == "experiment":
-        render_experiment(d)
     elif step_id == "limitation":
         render_limitation(d)
-    elif step_id == "demystify":
-        render_demystify(d)
-    elif step_id == "history":
-        render_history(d)
+    elif step_id == "next_question":
+        render_next_question(d)
+    else:
+        # why_read / prior_work / prior_limits / position / experiment / future
+        render_blocks_step(d)
 
 
 def render_nav():

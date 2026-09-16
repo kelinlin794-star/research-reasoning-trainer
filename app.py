@@ -19,11 +19,33 @@ common.init_state()
 
 
 def get_api_key():
-    """从 Streamlit secrets 读取 DeepSeek API Key。"""
+    """读取 DeepSeek API Key（优先 st.secrets，失败则读本地 secrets.toml 文件）。"""
+
+    def _valid(k):
+        return bool(k) and "填你的" not in k and "在这里" not in k
+
+    # 方式一：从 Streamlit secrets 读
     try:
-        return st.secrets.get("DEEPSEEK_API_KEY", "") or ""
+        k = (st.secrets.get("DEEPSEEK_API_KEY", "") or "").strip()
+        if _valid(k):
+            return k
     except Exception:
-        return ""
+        pass
+
+    # 方式二：直接读本地 .streamlit/secrets.toml（兜底，本地开发更稳）
+    try:
+        import os
+        import tomllib
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", "secrets.toml")
+        with open(path, "rb") as f:
+            s = tomllib.load(f)
+        k = (s.get("DEEPSEEK_API_KEY") or "").strip()
+        if _valid(k):
+            return k
+    except Exception:
+        pass
+
+    return ""
 
 
 def render_header():

@@ -50,32 +50,37 @@ SYSTEM_PROMPT = """你是一位资深的科研方法解构专家，擅长把论�
     "tags": ["标签1", "标签2"]
   },
   "training": {
-    "scenario": {"title": "现实问题", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "why_read": {"title": "为什么值得读", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "prior_work": {"title": "以前怎么解决", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "prior_limits": {"title": "为什么以前不够", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "position": {"title": "这篇论文处在哪", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
     "guess": {
-      "title": "先猜", "intro": "引导语",
+      "title": "如果是你，你会怎么办", "intro": "引导语",
       "constraints": ["约束1", "约束2"],
       "scaffold": [{"id": "a", "text": "选项A", "correct": false, "why": "为什么不对"}]
     },
-    "solution": {"title": "看作者方案", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
-    "method": {"title": "拆解方法", "intro": "引导语", "layers": [{"name": "约束", "blocks": [{"evidence": "stated", "text": "内容"}]}]},
-    "experiment": {"title": "看实验验证", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "solution": {"title": "作者怎么解决", "intro": "引导语", "chain": [{"stage": "约束", "text": "内容"}], "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "experiment": {"title": "实验到底证明了什么", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
     "limitation": {
-      "title": "找局限", "intro": "引导语",
+      "title": "还有什么问题", "intro": "引导语",
       "scaffold": [{"id": "a", "text": "可能的局限A", "valid": true, "why": "说明"}],
       "author_limitations": [{"evidence": "stated", "text": "论文自己承认的局限"}]
     },
-    "demystify": {"title": "去魅", "intro": "引导语", "chain": [{"stage": "约束", "text": "内容"}], "blocks": [{"evidence": "stated", "text": "内容"}]},
-    "history": {"title": "回归历史演进", "intro": "引导语"}
+    "future": {"title": "后续论文怎么继续", "intro": "引导语", "blocks": [{"evidence": "stated", "text": "内容"}]},
+    "next_question": {"title": "下一个研究问题是什么", "intro": "引导语", "prompts": ["提示角度1"], "blocks": [{"evidence": "reconstructed", "text": "内容"}]}
   },
   "timeline_domain": [{"year": "时间", "title": "标题", "text": "内容", "evidence": "stated"}],
   "timeline_tech": [{"year": "时间", "title": "标题", "text": "内容", "evidence": "stated"}]
 }
 
 ## 字段要点
+- 前 4 步（why_read / prior_work / prior_limits / position）是「纵向定位」：讲清为什么读、历史方法、历史局限、本文位置，层层铺垫。
 - guess.scaffold：给 3~4 个选项，只有 1 个 correct=true（作者真实路线），其余是易混淆的干扰项，每个选项都要有 why 说明。guess.constraints 只给「作者面对的约束」，绝不能泄露答案。
-- method.layers：通常按「约束 / 测量 / 瓶颈 / 方案」四层展开（可按论文实际情况调整层数与命名）。
+- solution.chain：还原「约束 → 测量 → 瓶颈 → 方案」的工程决策链（3~5 个环节），体现「不神化」原则；solution.blocks 具体讲方案。
+- experiment 要讲清「证明了什么、又没证明什么」的边界。
 - limitation.scaffold：给 3~4 个可能的局限，用 valid 标对错；author_limitations 是论文自己承认的局限。
-- demystify.chain：还原「约束 → 测量 → 瓶颈 → 方案」的工程决策链，3~5 个环节。
+- future：论文自己指出的后续工作与展望方向。
+- next_question.prompts：给 2~4 个引导用户思考「下一个研究问题」的角度（基于论文的局限与未来方向）。
 - timeline_domain：领域问题演进线，3~5 条；timeline_tech：技术演进线，3~5 条。
 - 所有中文内容必须准确、具体、基于论文事实，杜绝空洞套话。""".strip()
 
@@ -124,7 +129,7 @@ def validate(data: dict):
     for k in required:
         if k not in data:
             raise ValueError(f"解析结果缺少字段：{k}")
-    steps = ["scenario", "guess", "solution", "method", "experiment", "limitation", "demystify", "history"]
+    steps = ["why_read", "prior_work", "prior_limits", "position", "guess", "solution", "experiment", "limitation", "future", "next_question"]
     for s in steps:
         if s not in data["training"]:
             raise ValueError(f"训练数据缺少阶段：{s}")

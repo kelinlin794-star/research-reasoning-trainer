@@ -13,128 +13,148 @@
   },
 
   "training": {
-    "scenario": {
-      "title": "现实问题",
-      "intro": "先别管技术细节，理解这个场景：为什么有人要费这么大劲做这件事？",
+    "why_read": {
+      "title": "为什么值得读",
+      "intro": "在动手拆解之前，先搞清楚：这件事为什么重要，为什么有人愿意花大力气去做。",
       "blocks": [
-        {"evidence": "stated", "text": "学习式机器人控制算法正在普及，尤其是十亿参数级的视觉-语言-动作（VLA）模型。它们泛化能力惊人，却普遍面临「延迟」问题。"},
-        {"evidence": "stated", "text": "很多真实任务——比如接住一个正在下落的物体——要求极快的反应时间。而 VLA 模型一次前向推理通常需要数百毫秒，这让动态任务看起来遥不可及。"},
-        {"evidence": "stated", "text": "关键门槛是 33ms（约 1/30 秒）：只有推理快过它，才能完整处理 30 FPS 视频流的每一帧。哪怕只慢到 34ms，也得时不时丢帧——一旦关键事件恰好发生在被丢掉的帧上，反应就会多延迟整整一帧。"},
-        {"evidence": "reconstructed", "text": "换句话说，作者面对的是一个「大模型聪明但慢」与「任务需要快」之间的硬冲突——这正是这篇论文要啃的骨头。"}
+        {"evidence": "stated", "text": "学习式机器人控制正在普及，尤其是十亿参数级的视觉-语言-动作（VLA）模型，泛化能力惊人，却普遍面临「延迟」问题——一次前向推理要数百毫秒。"},
+        {"evidence": "stated", "text": "很多真实任务要求极快的反应：比如接住一个正在下落的物体。模型「思考」一次的时间，物体早就掉下去了。"},
+        {"evidence": "stated", "text": "关键门槛是 33ms（约 1/30 秒）：只有快过它，才能完整处理 30 FPS 视频流的每一帧。哪怕慢到 34ms，也得丢帧——关键事件一旦落在被丢的帧上，反应就多延迟一整帧。"},
+        {"evidence": "reconstructed", "text": "一句话：这篇论文想打破「大模型聪明但慢，所以做不了实时任务」这个成见，值得读的地方不在新算法，而在它怎么把「快不起来」这个模糊焦虑拆成可解决的工程问题。"}
+      ]
+    },
+
+    "prior_work": {
+      "title": "以前怎么解决",
+      "intro": "「让机器人又快又聪明」不是新问题。看看前人走过的路。",
+      "blocks": [
+        {"evidence": "stated", "text": "传统机器人控制分三层，不同算法跑在不同频率：底层力/力矩控制跑在 1kHz 级别的高频，追求精准但不理解语义；VLA 被认为只能做「慢而聪明」的中层控制。"},
+        {"evidence": "stated", "text": "在模型加速这条技术线上，前人积累了大量工具：手工 kernel（XLA、TensorRT、CUTLASS）、调度型编译器（TVM）、超优化搜索（Mirage、Neptune），以及 FlashAttention、FlashDecoding 这类 IO-aware 的注意力优化。"},
+        {"evidence": "stated", "text": "这些方法的共同思路是：减少 kernel 数量、减少显存搬运、把算子融合。它们都有效，但各有侧重。"}
+      ]
+    },
+
+    "prior_limits": {
+      "title": "为什么以前不够",
+      "intro": "工具这么多，为什么 VLA 还是「快不起来」？",
+      "blocks": [
+        {"evidence": "stated", "text": "FlashAttention / FlashDecoding 只优化了注意力这一块，却忽略了 FFN 等其他部分，整个前向过程仍要多次 kernel 启动和频繁的 DRAM 访问。"},
+        {"evidence": "stated", "text": "TensorRT 等自动编译框架虽然省事，但针对 VLA 这种一千多个 kernel 的大图，仍留下大量 CPU 派发开销和重复的全局内存访问，达不到实时要求。"},
+        {"evidence": "stated", "text": "naive PyTorch 实现更是慢到 105ms（单视角）——CPU 要逐条驱动上千个 kernel，光启动开销就拖垮了延迟。"},
+        {"evidence": "reconstructed", "text": "换句话说：以前不是没有工具，而是没人把这些工具**系统性、按层序**地用到 VLA 上，也没有人去量一量「到底还有多少优化空间」。"}
+      ]
+    },
+
+    "position": {
+      "title": "这篇论文处在哪",
+      "intro": "把它放进坐标系里：它既不发明新模型，也不发明新优化工具，那它的位置在哪？",
+      "blocks": [
+        {"evidence": "stated", "text": "在「又快又聪明」这条轴线上，本文是突破点：它第一次证明 π0 级别的十亿参数 VLA 能在单张消费级 GPU 上实时运行（30Hz，最高 480Hz 力控频率）。"},
+        {"evidence": "stated", "text": "在「加速方法」这条轴线上，它不造新轮子，而是把 CUDA graph、图变换、Triton kernel 调优、roofline 下界分析这些已有手段，整合成一条针对 VLA 的完整管线。"},
+        {"evidence": "reconstructed", "text": "所以它的独特贡献是「整合 + 系统化」：把「能不能实时」从经验猜测变成「用下界论证，接近最优」的工程结论。"}
       ]
     },
 
     "guess": {
-      "title": "先猜：作者会怎么做？",
-      "intro": "你已经知道了约束。现在把论文挡起来，猜一猜：如果让你来解决，你会走哪条路？",
+      "title": "如果是你，你会怎么办",
+      "intro": "现在把论文挡起来。你已知这些约束——如果是你，怎么把推理从 100+ms 压到 33ms 以内？",
       "constraints": [
-        "模型是 π0 级别：约 3B 参数的 VLM + 300M 参数的动作专家（AE），结构基本固定，不能随意换成小模型。",
-        "只能在一张消费级 RTX 4090 上跑，不能靠云端多卡堆算力。",
-        "目标是把推理从 100+ 毫秒压到 33 毫秒以内（30 FPS）。"
+        "模型是 π0 级别：约 3B 参数 VLM + 300M 参数动作专家，结构固定，不能换成小模型。",
+        "只能在一张消费级 RTX 4090 上跑，不能靠云端多卡。",
+        "目标：从 100+ 毫秒压到 33 毫秒以内（30 FPS）。"
       ],
       "scaffold": [
-        {"id": "a", "text": "换一个更小、更快的模型来跑", "correct": false, "why": "这违背了论文的核心主张——「大模型也能实时」。缩水模型等于回避问题，而不是解决问题。"},
-        {"id": "b", "text": "系统性优化推理管线：消除 CPU 开销 + 简化计算图 + 手工调优 kernel", "correct": true, "why": "这正是论文的做法——CUDA graph 消 CPU 开销、图变换删冗余计算、Triton 调优 GEMM，三层递进。"},
-        {"id": "c", "text": "把推理搬到云端，用多张卡并行加速", "correct": false, "why": "论文明确要求「单张消费级 GPU」，云端多卡违背了「单卡实时」的设定，也不够实用。"},
-        {"id": "d", "text": "大幅降低图像分辨率、减少输入帧数来省时间", "correct": false, "why": "这是「偷工减料」。作者的方向恰恰相反——后面还想支持更多视角、更高帧率，而非降级输入。"}
+        {"id": "a", "text": "换一个更小、更快的模型来跑", "correct": false, "why": "这违背论文核心主张——「大模型也能实时」。缩水模型是回避问题，不是解决问题。"},
+        {"id": "b", "text": "系统性优化推理管线：消除 CPU 开销 + 简化计算图 + 手工调优 kernel", "correct": true, "why": "这正是作者路线：CUDA graph 消 CPU 开销、图变换删冗余计算、Triton 调优 GEMM，三层递进。"},
+        {"id": "c", "text": "把推理搬到云端，用多张卡并行加速", "correct": false, "why": "论文明确要求「单张消费级 GPU」，云端多卡违背了「单卡实时」的设定。"},
+        {"id": "d", "text": "大幅降低图像分辨率、减少输入帧数来省时间", "correct": false, "why": "这是「偷工减料」。作者方向相反——还想支持更多视角、更高帧率。"}
       ]
     },
 
     "solution": {
-      "title": "看作者方案",
-      "intro": "答案揭晓：作者没有发明任何新模型，而是把「推理」当成一个可以逐层优化的工程问题，一层一层把开销抠掉。",
+      "title": "作者怎么解决",
+      "intro": "答案揭晓：作者没发明新模型，而是把「推理」当成一个可逐层优化的工程问题，一层层把开销抠掉。",
+      "chain": [
+        {"stage": "约束", "text": "33ms 内反应，单张 4090，模型不能改。"},
+        {"stage": "测量", "text": "从 naive PyTorch 的 105ms 逐项计时，再用 roofline 模型算出理论下界（2 视角约 19.7ms）。"},
+        {"stage": "瓶颈", "text": "CPU 开销、计算图冗余、单 kernel 低效——三类，清晰可数。"},
+        {"stage": "方案", "text": "CUDA graph → 图简化 → Triton 调优，层层递进，每步都有计时数据支撑。"}
+      ],
       "blocks": [
-        {"evidence": "stated", "text": "核心观察：VLA 完全有能力在单张 RTX 4090 上实时运行，真正的障碍是推理管线的各种开销，而不是模型本身算不动。"},
-        {"evidence": "stated", "text": "第一层——消除 CPU 开销：用 CUDA graph 把 1000 多个 kernel 的启动「录制」下来，之后由 GPU 直接重放，绕开 Python 逐条派发。这一步大约提速 2 倍。"},
-        {"evidence": "stated", "text": "第二层——简化计算图：把 RMS norm 的仿射参数折进下一个线性层、折叠 action-time embedding 的连续线性层、把 QKV 投影合并成一个大矩阵。等价但更省，约省 7-8ms。"},
-        {"evidence": "stated", "text": "第三层——深入单个 kernel：用 Triton 手工调优 GEMM 的 tile 参数、融合 gated linear 层、把 bias/残差/激活等标量操作融进矩阵乘。再省约 8ms。"},
-        {"evidence": "stated", "text": "最终结果：2 视角推理从 openpi/jax 的 53.7ms 降到 27.3ms，跨过 30 FPS 门槛；naive PyTorch 的 105ms 被压到 20ms（1 视角）。"}
-      ]
-    },
-
-    "method": {
-      "title": "拆解方法",
-      "intro": "把作者的思路还原成一条「问题 → 需求 → 概念 → 方法」的链条，逐层展开。",
-      "layers": [
-        {"name": "约束", "blocks": [
-          {"evidence": "stated", "text": "实时 = 每帧 <33ms；硬件只有一张 RTX 4090；模型是 π0 的 3B VLM + 300M AE，结构不能动。"}
-        ]},
-        {"name": "测量", "blocks": [
-          {"evidence": "stated", "text": "先把 naive PyTorch 实现逐项计时，发现 105ms 远超目标；再用 roofline 模型算出理论下界——2 视角约 19.7ms。有了下界，才知道还有多少优化空间。"}
-        ]},
-        {"name": "瓶颈", "blocks": [
-          {"evidence": "stated", "text": "作者定位到三类瓶颈：① CPU 开销（Python 驱动 1000+ 次 kernel launch）；② 冗余计算（可被等价化简的计算图）；③ 单 kernel 低效（GEMM 的 tile 分块与 128 个 SM 不匹配）。"}
-        ]},
-        {"name": "方案", "blocks": [
-          {"evidence": "stated", "text": "对症下药：CUDA graph 消 CPU 开销（约 2x）→ 图简化删冗余（省 7-8ms）→ Triton 调优 kernel（省约 8ms）。105ms 一路压到 27ms。"},
-          {"evidence": "reconstructed", "text": "注意作者的节奏：先摘「低垂果实」（收益大、改动小），再啃「硬骨头」（单 kernel 深度优化）——这是典型的工程方法论。"}
-        ]}
+        {"evidence": "stated", "text": "第一层消除 CPU 开销：用 CUDA graph 把 1000 多个 kernel 的启动录制下来交给 GPU 重放，绕开 Python 逐条派发，约提速 2 倍。"},
+        {"evidence": "stated", "text": "第二层简化计算图：折叠 RMS norm 的仿射参数、折叠 action-time embedding 的线性层、把 QKV 投影合并成大矩阵，等价但省约 7-8ms。"},
+        {"evidence": "stated", "text": "第三层深入 kernel：用 Triton 手工调优 GEMM tile、融合 gated linear 层、把 bias/残差/激活融进矩阵乘，再省约 8ms。"},
+        {"evidence": "stated", "text": "最终：2 视角推理从 openpi/jax 的 53.7ms 降到 27.3ms，跨过 30 FPS 门槛；naive PyTorch 的 105ms 被压到 20ms（1 视角）。"},
+        {"evidence": "reconstructed", "text": "注意作者的节奏：先摘「低垂果实」（收益大、改动小），再啃「硬骨头」（单 kernel 深度优化），并用 roofline 下界告诉自己「还剩最多 30% 空间」——这是典型的工程方法论，不是天才灵光。"}
       ]
     },
 
     "experiment": {
-      "title": "看实验验证",
-      "intro": "论文没有停留在跑分，而是做了一个真实世界的验证实验。",
+      "title": "实验到底证明了什么",
+      "intro": "论文没停在跑分，而是做了真实世界验证。关键要想清楚：这个实验**到底证明了什么，又没证明什么**。",
       "blocks": [
-        {"evidence": "stated", "text": "实验设计：两个上下对齐的夹爪夹住一支笔，上方夹爪松开后，下方夹爪要在正确时机闭合接住它——闭得太早或太晚都会让笔脱手。"},
-        {"evidence": "stated", "text": "难度设计：夹爪开合仅 60ms（约两帧）；相机看不到上方夹爪，无法直接观察松手时刻；笔要下落约 30cm 才被接住。相机本身还有约 2 帧的 ISP+USB 传输延迟。"},
-        {"evidence": "stated", "text": "数据与训练：用官方 openpi 仓库训练，采集 600 个 episode 示范数据，两个输入视角（当前帧 + 上一帧）提供笔的下落速度线索。"},
-        {"evidence": "stated", "text": "结果：连续 10 次实验全部成功，100% 成功率，端到端反应时间 <200ms。"},
-        {"evidence": "stated", "text": "作者还做了个对照：人类接住他人手中落下的笔，30cm 是常见的反应距离下限——也就是说，这个系统的反应速度已与人类相当。"}
+        {"evidence": "stated", "text": "实验设计：两个上下对齐的夹爪夹住一支笔，上方夹爪松开后，下方夹爪要在正确时机闭合接住它。夹爪开合仅 60ms（约两帧），相机还看不到上方夹爪，无法直接观察松手时刻。"},
+        {"evidence": "stated", "text": "相机是 30 FPS 的 720P USB 相机，测量延迟约两帧（一帧 ISP、一帧 USB）；笔要下落约 30cm 才被接住。数据：600 个 episode 示范，官方 openpi 仓库训练。"},
+        {"evidence": "stated", "text": "结果：连续 10 次实验全部成功（100%），端到端反应 <200ms。作者对照：人类接住他人手中落下的笔，30cm 已是反应距离下限，系统速度与人类相当。"},
+        {"evidence": "stated", "text": "但要看清边界：作者自己承认「从学习角度看这结果很 trivial，LeNet 甚至 SVM 也能做到」——所以这个实验证明的是**系统延迟**达标，而不是**模型能力**有多强。"}
       ]
     },
 
     "limitation": {
-      "title": "找局限",
-      "intro": "先别急着看作者的自我批评。你自己先挑毛病：这套方法有什么软肋？",
+      "title": "还有什么问题",
+      "intro": "先别急着看作者的自我批评，你自己先挑毛病：这套方法有什么软肋？",
       "scaffold": [
-        {"id": "a", "text": "验证任务太简单，接笔这个策略本身没有通用性", "valid": true, "why": "作者亲口承认「从学习角度看这结果很 trivial，换成 LeNet 甚至 SVM 也能做到」。这是最实锤的局限。"},
-        {"id": "b", "text": "480Hz 力控闭环只是框架设想，没有实际实现和验证", "valid": true, "why": "Full Streaming Inference 全文只是设计草图，作者明确说「所有实现细节都被省略，留待后续工作」。"},
-        {"id": "c", "text": "优化高度依赖特定硬件（RTX 4090），换个 GPU 未必成立", "valid": true, "why": "tile 调优、SM 数量、roofline 参数都针对 4090 标定，迁移到其他硬件需要重做。"},
-        {"id": "d", "text": "优化后模型精度明显下降", "valid": false, "why": "论文没有报告精度下降——这是「无法确定」，不能当成已成立的缺陷。"}
+        {"id": "a", "text": "优化高度依赖特定硬件（RTX 4090）和特定模型（π0），迁移要重新调优", "valid": true, "why": "tile 参数、partial split-k、roofline 参数都针对 4090 标定，换硬件要重做。"},
+        {"id": "b", "text": "480Hz 力控闭环只是框架设想，没有实际实现和验证", "valid": true, "why": "Full Streaming Inference 全文只是设计草图，作者明确说实现细节省略、留待后续。"},
+        {"id": "c", "text": "抓笔任务太简单，不能证明复杂任务上的实时能力", "valid": true, "why": "作者亲口承认从学习角度 trivial，实验只验证延迟、不验证能力。"},
+        {"id": "d", "text": "优化后模型精度明显下降", "valid": false, "why": "论文没报告精度下降——这是「无法确定」，不能当成已成立的缺陷。"}
       ],
       "author_limitations": [
-        {"evidence": "stated", "text": "「From a learning perspective, this result is trivial」——作者明确承认：从学习角度这任务太简单，LeNet 或 SVM 也能做到。真正的贡献在「系统/延迟」而非「算法/精度」。"},
-        {"evidence": "stated", "text": "Full Streaming Inference（480Hz 力控 + 30Hz 视觉 + <1Hz 文本三环）只是框架草案，实现细节全部省略。"},
-        {"evidence": "stated", "text": "software barrier 融合实测为负收益，只被用作「同步开销下界」的论证工具，并未真正采用。"},
-        {"evidence": "stated", "text": "partial split-k 优化收益不到 0.1ms，作者自己都说这是「一个有趣的案例」而非关键贡献。"}
+        {"evidence": "stated", "text": "「From a learning perspective, this result is trivial」——作者承认任务太简单，真正贡献在系统/延迟而非算法/精度。"},
+        {"evidence": "stated", "text": "Full Streaming Inference（480Hz 力控 + 30Hz 视觉 + <1Hz 文本三环）只是设计草图，实现细节全部省略。"},
+        {"evidence": "stated", "text": "software barrier 融合实测负收益，只用作「同步开销下界」的论证工具，未真正采用。"},
+        {"evidence": "stated", "text": "partial split-k 收益不到 0.1ms，作者自评是「有趣的案例」而非关键贡献。"}
       ]
     },
 
-    "demystify": {
-      "title": "去魅",
-      "intro": "把「作者的创新」拆开来看，你会发现里面没有魔法，只有一步步的工程决策。",
-      "chain": [
-        {"stage": "约束", "text": "任务要求在 33ms 内反应，硬件只有一张 4090，模型不能改。"},
-        {"stage": "测量", "text": "先逐项计时定位瓶颈，再用 roofline 模型算理论下界。"},
-        {"stage": "瓶颈", "text": "CPU 开销、冗余计算、单 kernel 低效——三类问题，清晰可数。"},
-        {"stage": "方案", "text": "CUDA graph → 图简化 → kernel 调优，层层递进，每一步都有计时数据支撑。"}
+    "future": {
+      "title": "后续论文怎么继续",
+      "intro": "一篇好论文会自己指出「下一步往哪走」。看作者怎么给自己铺路。",
+      "blocks": [
+        {"evidence": "stated", "text": "硬件换代：RTX 5090 提供 1.79TB/s 带宽和更多算力，作者预计 7B 参数模型会是下一个里程碑，60-120 FPS 的视觉延迟成为可能方向。"},
+        {"evidence": "stated", "text": "框架落地：把 480Hz 的 Full Streaming Inference 真正实现并验证，触及实时力控的门槛。"},
+        {"evidence": "stated", "text": "能力升级：引入 VLM 作为 System I 做高层场景感知与任务规划，引入力觉、视觉触觉等多感官信息，处理更复杂的实时任务。"},
+        {"evidence": "stated", "text": "数据挑战：若追求 >480Hz 的更高控制频率，每秒要收集上千级演示数据，这本身也是难题。"}
+      ]
+    },
+
+    "next_question": {
+      "title": "下一个研究问题是什么",
+      "intro": "训练的最高目标不是记住结论，而是你能从这里长出自己的问题。论文已经给了线索，试着把它变成「你的」下一个研究问题。",
+      "prompts": [
+        "论文承认抓笔任务「trivial」，那什么样的实时任务才能真正暴露 VLA 的能力上限？",
+        "方法强依赖 RTX 4090，能不能让这套优化「可移植」到不同硬件而不重新手调？",
+        "480Hz 力控还是草图——你能否设计一个实验，证明「更高频率的力控」真的带来任务收益？",
+        "如果把「又快」和「聪明」结合：高频力控 + 高层 VLM 规划，中间该怎么分工？"
       ],
       "blocks": [
-        {"evidence": "stated", "text": "这篇论文的「创新」不是天才灵光，而是一套系统的工程方法：把「大模型快不起来」这个模糊的焦虑，拆解成可测量、可逐一击破的具体瓶颈。"},
-        {"evidence": "stated", "text": "最诚实的证据是作者自己：承认任务 trivial、480Hz 是草图、部分优化收益微小——没有把成果包装成魔法。"},
-        {"evidence": "reconstructed", "text": "如果你下次面对「某模型跑不动/太慢」的困境，这篇论文给了一套可复用的思维模板：先测量、找瓶颈、摘低垂果实、啃硬骨头、算下界看还剩多少空间。"}
+        {"evidence": "reconstructed", "text": "一个通用的思考框架：从「局限」出发，把每个「不能/没做」翻译成一个可验证的问题，就是论文最诚实的下一步。"}
       ]
-    },
-
-    "history": {
-      "title": "回归历史演进",
-      "intro": "把这篇论文放回更大的坐标系——它同时是两条历史线的交汇点：机器人控制对「反应速度」的追求，以及 GPU 推理优化的技术史。详见「历史演进」页。"
     }
   },
 
   "timeline_domain": [
-    {"year": "长期", "title": "传统控制：高频但「不聪明」", "text": "力控/扭矩控制在 1kHz 级别的高频下做精确控制，反应极快，但缺乏对复杂场景的语义理解与泛化能力。", "evidence": "reconstructed"},
-    {"year": "2024", "title": "VLA 兴起：聪明但「慢」", "text": "π0 等十亿参数 VLA 带来强大泛化，但单次推理要数百毫秒，被认为只能做「慢而聪明」的中层控制，高频力控仍交给其他算法。", "evidence": "stated"},
-    {"year": "2025", "title": "本文：又快又聪明", "text": "证明 VLA 也能跑 30Hz、甚至最高 480Hz 的力控频率，打破了「大模型无法实时」的成见。", "evidence": "stated"}
+    {"year": "长期", "title": "传统控制：高频但「不聪明」", "text": "力控/扭矩控制在 1kHz 级别做精确控制，反应极快，但缺乏语义理解与泛化。", "evidence": "reconstructed"},
+    {"year": "2024", "title": "VLA 兴起：聪明但「慢」", "text": "π0 等十亿参数 VLA 带来强泛化，但单次推理数百毫秒，被认为只能做「慢而聪明」的中层控制。", "evidence": "stated"},
+    {"year": "2025", "title": "本文：又快又聪明", "text": "证明 VLA 也能跑 30Hz、最高 480Hz 力控频率，打破「大模型无法实时」的成见。", "evidence": "stated"}
   ],
 
   "timeline_tech": [
     {"year": "早期", "title": "朴素 PyTorch", "text": "Python 逐条派发 CUDA kernel，kernel 一多，CPU 派发开销就成了大头。", "evidence": "reconstructed"},
     {"year": "2018+", "title": "编译优化：XLA / TensorRT / TVM", "text": "通过算子调度、融合、自动调优减少 kernel 数量与显存搬运。", "evidence": "stated"},
     {"year": "2019", "title": "Triton", "text": "把张量拆成 tile 直接映射到硬件，让非专家也能写高效 GPU kernel。", "evidence": "stated"},
-    {"year": "2022", "title": "FlashAttention", "text": "IO-aware 的注意力实现，用分块减少 HBM↔SRAM 搬运。", "evidence": "stated"},
+    {"year": "2022", "title": "FlashAttention", "text": "IO-aware 注意力实现，用分块减少 HBM↔SRAM 搬运。", "evidence": "stated"},
     {"year": "2024", "title": "CUDA graph", "text": "录制并重放 kernel 流，彻底消除 CPU launch 开销——本文的第一层武器。", "evidence": "stated"},
-    {"year": "2025", "title": "本文：系统化应用到 VLA", "text": "把上述手段整合成一条完整管线，并用 roofline 模型给出理论下界，论证「已经接近最优」。", "evidence": "stated"}
+    {"year": "2025", "title": "本文：系统化应用到 VLA", "text": "把上述手段整合成完整管线，并用 roofline 下界论证「接近最优」。", "evidence": "stated"}
   ]
 }

@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 import common
+import tutor
 
 st.set_page_config(page_title="推理训练", page_icon="🧠", layout="wide")
 common.init_state()
@@ -120,6 +121,25 @@ def render_guess(d):
         st.markdown("**作者的真实路线**：")
         st.info(correct["text"] + "　" + correct["why"])
 
+        # Agent 决策层：让 AI 教练点评用户的猜想
+        st.divider()
+        st.markdown("**让 AI 教练点评你的思路**")
+        fb_key = f"guess_fb_{st.session_state.paper_id}"
+        if st.button("点评我的猜想"):
+            api_key = common.get_api_key()
+            if not api_key:
+                st.warning("未配置 API Key，无法点评。")
+            else:
+                with st.spinner("AI 正在点评你的思路..."):
+                    try:
+                        fb = tutor.comment_guess(meta["title"], d["constraints"], chosen, correct["text"], api_key)
+                        st.session_state[fb_key] = fb
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"点评失败：{e}")
+        if st.session_state.get(fb_key):
+            st.info(st.session_state[fb_key])
+
 
 def render_solution(d):
     st.markdown(d["intro"])
@@ -167,6 +187,25 @@ def render_limitation(d):
         st.markdown("### 作者自己承认的局限")
         common.render_blocks(d["author_limitations"])
 
+        # Agent 决策层：让 AI 教练点评用户的分析
+        st.divider()
+        st.markdown("**让 AI 教练点评你的分析**")
+        fb_key = f"lim_fb_{st.session_state.paper_id}"
+        if st.button("点评我的分析"):
+            api_key = common.get_api_key()
+            if not api_key:
+                st.warning("未配置 API Key，无法点评。")
+            else:
+                with st.spinner("AI 正在点评..."):
+                    try:
+                        fb = tutor.comment_limitation(meta["title"], selected, api_key)
+                        st.session_state[fb_key] = fb
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"点评失败：{e}")
+        if st.session_state.get(fb_key):
+            st.info(st.session_state[fb_key])
+
 
 def render_next_question(d):
     st.markdown(d["intro"])
@@ -195,6 +234,26 @@ def render_next_question(d):
             st.success("已保存到「去魅档案」！")
         else:
             st.warning("先写点东西再保存吧。")
+
+    # Agent 决策层：让 AI 打磨用户的研究问题
+    st.divider()
+    st.markdown("**让 AI 帮你把问题打磨得更尖锐**")
+    if st.button("打磨我的问题"):
+        api_key = common.get_api_key()
+        if not q.strip():
+            st.warning("先在上面写下你的研究问题。")
+        elif not api_key:
+            st.warning("未配置 API Key，无法打磨。")
+        else:
+            with st.spinner("AI 正在打磨你的问题..."):
+                try:
+                    fb_key = f"polish_{st.session_state.paper_id}"
+                    st.session_state[fb_key] = tutor.polish_question(meta["title"], q.strip(), api_key)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"打磨失败：{e}")
+    if st.session_state.get(f"polish_{st.session_state.paper_id}"):
+        st.info(st.session_state[f"polish_{st.session_state.paper_id}"])
 
 
 def render_step(step_id, d):

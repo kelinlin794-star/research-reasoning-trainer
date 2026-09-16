@@ -6,3 +6,4 @@ venv/
 *.log
 _test_result.json
 test_parser.py
+verify_tutor.py

@@ -147,3 +147,36 @@ def start_paper(paper_id):
     st.session_state.guess_submitted = False
     st.session_state.guess_choice = None
     st.session_state.limitation_choice = None
+
+
+# ---------------------------------------------------------------------------
+# API Key 读取（供各页面调用 DeepSeek）
+# ---------------------------------------------------------------------------
+def get_api_key():
+    """读取 DeepSeek API Key（优先 st.secrets，失败则读本地 secrets.toml 文件）。"""
+
+    def _valid(k):
+        return bool(k) and "填你的" not in k and "在这里" not in k
+
+    # 方式一：从 Streamlit secrets 读
+    try:
+        k = (st.secrets.get("DEEPSEEK_API_KEY", "") or "").strip()
+        if _valid(k):
+            return k
+    except Exception:
+        pass
+
+    # 方式二：直接读本地 .streamlit/secrets.toml（兜底）
+    try:
+        import os
+        import tomllib
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", "secrets.toml")
+        with open(path, "rb") as f:
+            s = tomllib.load(f)
+        k = (s.get("DEEPSEEK_API_KEY") or "").strip()
+        if _valid(k):
+            return k
+    except Exception:
+        pass
+
+    return ""

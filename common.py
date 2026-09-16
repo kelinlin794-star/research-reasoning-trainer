@@ -58,23 +58,23 @@ STEPS = [
 # 数据加载
 # ---------------------------------------------------------------------------
 def list_papers():
-    """返回所有可用论文的 {id, meta} 列表（预置 + 用户上传持久化的动态论文）。"""
-    papers = []
+    """返回所有可用论文（预置 + 上传，uploaded 同名覆盖预置，避免语言切换后重复）。"""
+    papers = {}
     # 预置论文（data/ 根目录）
     if os.path.isdir(DATA_DIR):
         for fn in sorted(os.listdir(DATA_DIR)):
             if fn.endswith(".json"):
                 with open(os.path.join(DATA_DIR, fn), "r", encoding="utf-8") as f:
                     data = json.load(f)
-                papers.append({"id": data["id"], "meta": data.get("meta", {}), "dynamic": False, "style": data.get("_style", "mixed")})
-    # 上传的论文（data/uploaded/ 子目录，持久化，刷新/重启不丢）
+                papers[data["id"]] = {"id": data["id"], "meta": data.get("meta", {}), "dynamic": False, "style": data.get("_style", "mixed")}
+    # 上传/切换后的论文（data/uploaded/，同名覆盖预置）
     if os.path.isdir(UPLOADED_DIR):
         for fn in sorted(os.listdir(UPLOADED_DIR)):
             if fn.endswith(".json"):
                 with open(os.path.join(UPLOADED_DIR, fn), "r", encoding="utf-8") as f:
                     data = json.load(f)
-                papers.append({"id": data["id"], "meta": data.get("meta", {}), "dynamic": True, "style": data.get("_style", "mixed")})
-    return papers
+                papers[data["id"]] = {"id": data["id"], "meta": data.get("meta", {}), "dynamic": True, "style": data.get("_style", "mixed")}
+    return list(papers.values())
 
 
 def load_paper(paper_id):

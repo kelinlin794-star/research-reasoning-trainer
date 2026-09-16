@@ -11,3 +11,4 @@ test_literature.py
 test_lineage.py
 test_agent.py
 data/uploaded/
+test_restyle.py

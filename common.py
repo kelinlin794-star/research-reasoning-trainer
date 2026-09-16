@@ -169,6 +169,22 @@ def render_lineage_cards(result: dict):
     st.markdown(html_block, unsafe_allow_html=True)
 
 
+def render_timeline(events):
+    """渲染一条时间线（事件列表，每条带证据徽标）。"""
+    if not events:
+        st.caption("（暂无时间线数据）")
+        return
+    for ev in events:
+        with st.container(border=True):
+            top = st.columns([1, 4])
+            with top[0]:
+                st.markdown(f"**{ev.get('year', '')}**")
+            with top[1]:
+                st.markdown(f"**{ev.get('title', '')}**")
+            badge = evidence_badge(ev.get("evidence", "stated"))
+            st.markdown(f"{badge} {ev.get('text', '')}", unsafe_allow_html=True)
+
+
 # ---------------------------------------------------------------------------
 # 会话状态管理
 # ---------------------------------------------------------------------------

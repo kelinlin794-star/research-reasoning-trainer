@@ -114,6 +114,24 @@ def render_position(d):
             st.write(st.session_state[fb_key].get("lineage", ""))
 
 
+def render_prior_work(d):
+    """第 2 步「以前怎么解决」：内容 + 技术演进线。"""
+    st.markdown(d["intro"])
+    common.render_blocks(d.get("blocks", []))
+    st.divider()
+    st.markdown("**技术演进线**")
+    common.render_timeline(paper.get("timeline_tech", []))
+
+
+def render_prior_limits(d):
+    """第 3 步「为什么以前不够」：内容 + 领域问题线。"""
+    st.markdown(d["intro"])
+    common.render_blocks(d.get("blocks", []))
+    st.divider()
+    st.markdown("**领域问题线**")
+    common.render_timeline(paper.get("timeline_domain", []))
+
+
 def render_guess(d):
     st.markdown(d["intro"])
     st.markdown("**你已知的约束：**")
@@ -300,6 +318,10 @@ def render_step(step_id, d):
             render_solution(d)
     elif step_id == "position":
         render_position(d)
+    elif step_id == "prior_work":
+        render_prior_work(d)
+    elif step_id == "prior_limits":
+        render_prior_limits(d)
     elif step_id == "limitation":
         render_limitation(d)
     elif step_id == "next_question":

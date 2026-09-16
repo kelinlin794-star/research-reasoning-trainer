@@ -86,6 +86,21 @@ SYSTEM_PROMPT = """你是一位资深的科研方法解构专家，擅长把论�
 
 
 # ---------------------------------------------------------------------------
+# 语言风格（用户可选：纯中文 / 纯英文 / 中英结合）
+# ---------------------------------------------------------------------------
+STYLE_INSTRUCTIONS = {
+    "zh": "语言风格：全部用简体中文表达。",
+    "en": "Language style: write all content in natural, academic English.",
+    "mixed": (
+        "语言风格：采用「中英结合」的表达方式——专业术语、方法名、模型名、概念保留英文原文"
+        "（如 VLA、roofline model、CUDA graph、flow matching、kernel），"
+        "而叙述、解释、衔接用语用中文。类似香港学术圈自然的表达习惯，"
+        "例如：「这篇 paper 的核心 contribution 是……」「作者用 CUDA graph 来 eliminate 掉 CPU 的 overhead」。"
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
 # 文本提取
 # ---------------------------------------------------------------------------
 def extract_pdf_text(pdf_bytes: bytes) -> str:
@@ -159,13 +174,20 @@ def call_deepseek(system: str, user: str, api_key: str) -> str:
     return data["choices"][0]["message"]["content"]
 
 
-def parse_paper(pdf_bytes: bytes, api_key: str) -> dict:
-    """把 PDF 论文拆解为训练数据字典。"""
+def parse_paper(pdf_bytes: bytes, api_key: str, style: str = "mixed") -> dict:
+    """把 PDF 论文拆解为训练数据字典。
+
+    style: "zh" 纯中文 / "en" 纯英文 / "mixed" 中英结合（默认）。
+    """
     text = extract_pdf_text(pdf_bytes)
     if len(text.strip()) < 200:
         raise ValueError("PDF 文本提取失败或内容过少。请确认是文字版 PDF（扫描图片版暂不支持）。")
 
-    content = call_deepseek(SYSTEM_PROMPT, build_user_prompt(text), api_key)
+    style_inst = STYLE_INSTRUCTIONS.get(style, STYLE_INSTRUCTIONS["mixed"])
+    system = SYSTEM_PROMPT + "\n\n## 语言要求\n" + style_inst
+
+    content = call_deepseek(system, build_user_prompt(text), api_key)
     data = json.loads(strip_code_fence(content))
     validate(data)
+    data["_style"] = style
     return data

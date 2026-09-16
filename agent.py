@@ -71,6 +71,13 @@ COACH_SYSTEM = (
 )
 
 
+AGENT_STYLE = {
+    "zh": "用简体中文回答。",
+    "en": "Answer in natural, academic English.",
+    "mixed": "用「中英结合」的方式回答：专业术语保留英文（如 VLA、roofline、CUDA graph），叙述和衔接用中文。",
+}
+
+
 def coach_reply(paper: dict, current_step_id: str, history: list, api_key: str) -> str:
     """教练答疑：用户在 10 步的某一步遇到不懂的，结合「当前步骤内容」解答。
 
@@ -100,8 +107,12 @@ def coach_reply(paper: dict, current_step_id: str, history: list, api_key: str) 
         except Exception:
             lineage_text = ""
 
+    style = paper.get("_style", "mixed")
+    style_inst = AGENT_STYLE.get(style, AGENT_STYLE["mixed"])
+
     messages = [
-        {"role": "system", "content": COACH_SYSTEM + "\n\n【你手上这篇论文的背景】\n" + context
+        {"role": "system", "content": COACH_SYSTEM + "\n" + style_inst
+         + "\n\n【你手上这篇论文的背景】\n" + context
          + f"\n\n【用户当前正在看的步骤：{step_title}】\n{step_brief}"
          + ("\n\n【额外资料】\n" + lineage_text if lineage_text else "")},
     ]

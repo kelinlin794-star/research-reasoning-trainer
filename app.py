@@ -37,6 +37,15 @@ def render_upload():
 
     uploaded = st.file_uploader("选择 PDF 文件", type=["pdf"], key="pdf_uploader")
 
+    style_label = st.radio(
+        "语言风格",
+        ["中英结合", "纯中文", "纯英文"],
+        horizontal=True,
+        index=0,
+        help="中英结合：术语用英文、叙述用中文，像香港学术圈的表达习惯。",
+    )
+    style_map = {"中英结合": "mixed", "纯中文": "zh", "纯英文": "en"}
+
     if uploaded is not None:
         if st.button("开始解析", type="primary"):
             api_key = common.get_api_key()
@@ -48,7 +57,7 @@ def render_upload():
             else:
                 with st.spinner("正在解析论文：提取文本 → AI 拆解 → 生成训练数据（约 30~60 秒）..."):
                     try:
-                        data = parser.parse_paper(uploaded.getvalue(), api_key)
+                        data = parser.parse_paper(uploaded.getvalue(), api_key, style=style_map[style_label])
                         pid = common.save_dynamic_paper(data)
                         st.success(f"解析成功！论文《{data['meta'].get('title', pid)}》已就绪，可在下方开始训练。")
                     except Exception as e:

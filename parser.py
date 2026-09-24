@@ -196,6 +196,7 @@ def parse_paper(pdf_bytes: bytes, api_key: str, style: str = "mixed") -> dict:
     data = json.loads(strip_code_fence(content))
     validate(data)
     data["_style"] = style
+    data["_source_text"] = text  # 保存论文原文，供训练时对照查看
     return data
 
 
@@ -206,7 +207,8 @@ def restyle_paper(paper_data: dict, target_style: str, api_key: str) -> dict:
     """
     style_inst = STYLE_INSTRUCTIONS.get(target_style, STYLE_INSTRUCTIONS["mixed"])
 
-    payload = {k: v for k, v in paper_data.items() if k != "_style"}
+    # 排除所有内部字段（_style/_source_text/_dynamic 等），原文不需要改写
+    payload = {k: v for k, v in paper_data.items() if not k.startswith("_")}
     text = json.dumps(payload, ensure_ascii=False)
 
     system = (
@@ -220,4 +222,6 @@ def restyle_paper(paper_data: dict, target_style: str, api_key: str) -> dict:
     data = json.loads(strip_code_fence(content))
     validate(data)
     data["_style"] = target_style
+    if "_source_text" in paper_data:
+        data["_source_text"] = paper_data["_source_text"]  # 原文保留，不参与改写
     return data

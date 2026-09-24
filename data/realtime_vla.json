@@ -9,52 +9,94 @@
     "arxiv": "arXiv:2510.26742",
     "field": "具身智能 · 机器人控制",
     "difficulty": "进阶",
-    "tags": ["VLA", "实时推理", "GPU 优化", "流式推理"]
+    "tags": [
+      "VLA",
+      "实时推理",
+      "GPU 优化",
+      "流式推理"
+    ]
   },
-
   "training": {
     "why_read": {
       "title": "为什么值得读",
       "intro": "在动手拆解之前，先搞清楚：这件事为什么重要，为什么有人愿意花大力气去做。",
       "blocks": [
-        {"evidence": "stated", "text": "学习式机器人控制正在普及，尤其是十亿参数级的 VLA 模型（Vision-Language-Action，视觉-语言-动作模型：一种能「看」图像、「听」语言指令、直接「输出」机器人动作的 AI）。它泛化能力惊人，却普遍面临「延迟」问题——做一次前向推理（把输入算成输出的完整计算过程，相当于模型「思考一次」）就要几百毫秒。"},
-        {"evidence": "stated", "text": "很多真实任务要求极快的反应：比如接住一个正在下落的物体。模型「思考」一次要几百毫秒，物体早就掉到地上了。"},
-        {"evidence": "stated", "text": "关键门槛是 33 毫秒（约 1/30 秒）：只有快过它，才能完整处理 30 FPS 视频流（每秒 30 帧）的每一帧。哪怕慢到 34 毫秒，也得偶尔「丢帧」——关键事件一旦落在被丢的那一帧上，反应就多延迟整整一帧。"},
-        {"evidence": "reconstructed", "text": "一句话：这篇论文想打破「大模型聪明但慢，所以做不了实时任务」这个成见。它值得读的地方不在新算法，而在它怎么把「快不起来」这个模糊焦虑，拆成一个个可测量、可逐个解决的工程问题。"}
+        {
+          "evidence": "stated",
+          "text": "学习式机器人控制正在普及，尤其是十亿参数级的 VLA 模型（Vision-Language-Action，视觉-语言-动作模型：一种能「看」图像、「听」语言指令、直接「输出」机器人动作的 AI）。它泛化能力惊人，却普遍面临「延迟」问题——做一次前向推理（把输入算成输出的完整计算过程，相当于模型「思考一次」）就要几百毫秒。"
+        },
+        {
+          "evidence": "stated",
+          "text": "很多真实任务要求极快的反应：比如接住一个正在下落的物体。模型「思考」一次要几百毫秒，物体早就掉到地上了。"
+        },
+        {
+          "evidence": "stated",
+          "text": "关键门槛是 33 毫秒（约 1/30 秒）：只有快过它，才能完整处理 30 FPS 视频流（每秒 30 帧）的每一帧。哪怕慢到 34 毫秒，也得偶尔「丢帧」——关键事件一旦落在被丢的那一帧上，反应就多延迟整整一帧。"
+        },
+        {
+          "evidence": "reconstructed",
+          "text": "一句话：这篇论文想打破「大模型聪明但慢，所以做不了实时任务」这个成见。它值得读的地方不在新算法，而在它怎么把「快不起来」这个模糊焦虑，拆成一个个可测量、可逐个解决的工程问题。"
+        }
       ]
     },
-
     "prior_work": {
       "title": "以前怎么解决",
       "intro": "「让机器人又快又聪明」不是新问题。看看前人走过的路。",
       "blocks": [
-        {"evidence": "stated", "text": "传统机器人控制分三层，不同算法跑在不同频率：底层力/力矩控制（直接控制关节力度）跑在 1kHz（每秒 1000 次）级别的高频，反应快但不理解语义；而 VLA 被认为只能做「慢而聪明」的中层控制（负责理解任务、规划动作）。"},
-        {"evidence": "stated", "text": "在「让模型跑得更快」这条技术线上，前人积累了大量工具：手工优化的 kernel（GPU 上执行的一小段计算任务，相当于流水线上的一个工序，如 XLA、TensorRT、CUTLASS）、调度型编译器（自动安排计算顺序的工具，如 TVM）、超优化搜索（自动寻找最优实现，如 Mirage、Neptune），以及 FlashAttention、FlashDecoding 这类「省内存搬运」的注意力优化。"},
-        {"evidence": "stated", "text": "这些方法的共同思路是：减少 kernel 数量、减少显存（GPU 的内存）搬运、把多个计算合并成一个。它们都有效，但各有侧重、没人把它们系统性地用全。"}
+        {
+          "evidence": "stated",
+          "text": "传统机器人控制分三层，不同算法跑在不同频率：底层力/力矩控制（直接控制关节力度）跑在 1kHz（每秒 1000 次）级别的高频，反应快但不理解语义；而 VLA 被认为只能做「慢而聪明」的中层控制（负责理解任务、规划动作）。"
+        },
+        {
+          "evidence": "stated",
+          "text": "在「让模型跑得更快」这条技术线上，前人积累了大量工具：手工优化的 kernel（GPU 上执行的一小段计算任务，相当于流水线上的一个工序，如 XLA、TensorRT、CUTLASS）、调度型编译器（自动安排计算顺序的工具，如 TVM）、超优化搜索（自动寻找最优实现，如 Mirage、Neptune），以及 FlashAttention、FlashDecoding 这类「省内存搬运」的注意力优化。"
+        },
+        {
+          "evidence": "stated",
+          "text": "这些方法的共同思路是：减少 kernel 数量、减少显存（GPU 的内存）搬运、把多个计算合并成一个。它们都有效，但各有侧重、没人把它们系统性地用全。"
+        }
       ]
     },
-
     "prior_limits": {
       "title": "为什么以前不够",
       "intro": "工具这么多，为什么 VLA 还是「快不起来」？",
       "blocks": [
-        {"evidence": "stated", "text": "FlashAttention / FlashDecoding 只优化了注意力这一块，却忽略了 FFN（Transformer 里除注意力之外的另一大块计算）等其他部分；整个前向过程仍要启动很多次 kernel、反复访问 DRAM（显存里较慢的那层内存），开销还是大。"},
-        {"evidence": "stated", "text": "TensorRT 等自动编译框架虽然省事，但面对 VLA 这种「一次推理要跑一千多个 kernel」的大模型，仍留下大量 CPU 派发开销（CPU 逐个下令启动 kernel 的时间）和重复的显存访问，达不到实时要求。"},
-        {"evidence": "stated", "text": "最朴素的 PyTorch 实现更是慢到 105 毫秒（单视角）——CPU 要逐条驱动上千个 kernel，光「下令」这一步就拖垮了延迟。"},
-        {"evidence": "reconstructed", "text": "换句话说：以前不是没有工具，而是没人把这些工具**系统性、按顺序**地用到 VLA 上，也没有人先去量一量「理论上到底还能快多少」。"}
+        {
+          "evidence": "stated",
+          "text": "FlashAttention / FlashDecoding 只优化了注意力这一块，却忽略了 FFN（Transformer 里除注意力之外的另一大块计算）等其他部分；整个前向过程仍要启动很多次 kernel、反复访问 DRAM（显存里较慢的那层内存），开销还是大。"
+        },
+        {
+          "evidence": "stated",
+          "text": "TensorRT 等自动编译框架虽然省事，但面对 VLA 这种「一次推理要跑一千多个 kernel」的大模型，仍留下大量 CPU 派发开销（CPU 逐个下令启动 kernel 的时间）和重复的显存访问，达不到实时要求。"
+        },
+        {
+          "evidence": "stated",
+          "text": "最朴素的 PyTorch 实现更是慢到 105 毫秒（单视角）——CPU 要逐条驱动上千个 kernel，光「下令」这一步就拖垮了延迟。"
+        },
+        {
+          "evidence": "reconstructed",
+          "text": "换句话说：以前不是没有工具，而是没人把这些工具**系统性、按顺序**地用到 VLA 上，也没有人先去量一量「理论上到底还能快多少」。"
+        }
       ]
     },
-
     "position": {
       "title": "这篇论文处在哪",
       "intro": "把它放进坐标系里：它既不发明新模型，也不发明新优化工具，那它的位置在哪？",
       "blocks": [
-        {"evidence": "stated", "text": "在「又快又聪明」这条轴线上，本文是突破点：它第一次证明 π0 级别（π0 是一个知名的开源 VLA 模型）的十亿参数 VLA，能在单张消费级 GPU（普通玩家买得起的显卡，而非数据中心专用卡）上实时运行——30Hz 帧率，最高 480Hz 力控频率。"},
-        {"evidence": "stated", "text": "在「加速方法」这条轴线上，它不造新轮子，而是把 CUDA graph（一种把 GPU 上成百上千个小任务打包、一次性重放、从而省掉 CPU 逐个下令开销的机制）、计算图变换、Triton kernel 调优（Triton 是一种方便手写高效 GPU 代码的语言）、roofline 下界分析（roofline 是估算计算性能理论上限的工具，像给 GPU 算力画一条天花板线）这些已有手段，整合成一条针对 VLA 的完整管线。"},
-        {"evidence": "reconstructed", "text": "所以它的独特贡献是「整合 + 系统化」：把「能不能实时」从经验猜测，变成「用理论下界论证，证明已接近最优」的工程结论。"}
+        {
+          "evidence": "stated",
+          "text": "在「又快又聪明」这条轴线上，本文是突破点：它第一次证明 π0 级别（π0 是一个知名的开源 VLA 模型）的十亿参数 VLA，能在单张消费级 GPU（普通玩家买得起的显卡，而非数据中心专用卡）上实时运行——30Hz 帧率，最高 480Hz 力控频率。"
+        },
+        {
+          "evidence": "stated",
+          "text": "在「加速方法」这条轴线上，它不造新轮子，而是把 CUDA graph（一种把 GPU 上成百上千个小任务打包、一次性重放、从而省掉 CPU 逐个下令开销的机制）、计算图变换、Triton kernel 调优（Triton 是一种方便手写高效 GPU 代码的语言）、roofline 下界分析（roofline 是估算计算性能理论上限的工具，像给 GPU 算力画一条天花板线）这些已有手段，整合成一条针对 VLA 的完整管线。"
+        },
+        {
+          "evidence": "reconstructed",
+          "text": "所以它的独特贡献是「整合 + 系统化」：把「能不能实时」从经验猜测，变成「用理论下界论证，证明已接近最优」的工程结论。"
+        }
       ]
     },
-
     "guess": {
       "title": "如果是你，你会怎么办",
       "intro": "现在把论文挡起来。你已知这些约束——如果是你，怎么把推理从 100+ms 压到 33ms 以内？",
@@ -64,70 +106,168 @@
         "目标：从 100 多毫秒压到 33 毫秒以内（匹配 30 FPS）。"
       ],
       "scaffold": [
-        {"id": "a", "text": "换一个更小、更快的模型来跑", "correct": false, "why": "这违背论文核心主张——「大模型也能实时」。缩水模型是回避问题，不是解决问题。"},
-        {"id": "b", "text": "系统性优化推理管线：消除 CPU 开销 + 简化计算图 + 手工调优 kernel", "correct": true, "why": "这正是作者路线：CUDA graph 消 CPU 开销、图变换删冗余计算、Triton 调优矩阵乘，三层递进。"},
-        {"id": "c", "text": "把推理搬到云端，用多张卡并行加速", "correct": false, "why": "论文明确要求「单张消费级 GPU」，云端多卡违背了「单卡实时」的设定。"},
-        {"id": "d", "text": "大幅降低图像分辨率、减少输入帧数来省时间", "correct": false, "why": "这是「偷工减料」。作者方向相反——还想支持更多视角、更高帧率。"}
+        {
+          "id": "a",
+          "text": "换一个更小、更快的模型来跑",
+          "correct": false,
+          "why": "这违背论文核心主张——「大模型也能实时」。缩水模型是回避问题，不是解决问题。"
+        },
+        {
+          "id": "b",
+          "text": "系统性优化推理管线：消除 CPU 开销 + 简化计算图 + 手工调优 kernel",
+          "correct": true,
+          "why": "这正是作者路线：CUDA graph 消 CPU 开销、图变换删冗余计算、Triton 调优矩阵乘，三层递进。"
+        },
+        {
+          "id": "c",
+          "text": "把推理搬到云端，用多张卡并行加速",
+          "correct": false,
+          "why": "论文明确要求「单张消费级 GPU」，云端多卡违背了「单卡实时」的设定。"
+        },
+        {
+          "id": "d",
+          "text": "大幅降低图像分辨率、减少输入帧数来省时间",
+          "correct": false,
+          "why": "这是「偷工减料」。作者方向相反——还想支持更多视角、更高帧率。"
+        }
       ]
     },
-
     "solution": {
       "title": "作者怎么解决",
       "intro": "答案揭晓：作者没发明新模型，而是把「推理」当成一个可逐层优化的工程问题，一层层把开销抠掉。",
       "chain": [
-        {"stage": "约束", "text": "33ms 内反应，单张 4090，模型不能改。"},
-        {"stage": "测量", "text": "从最朴素 PyTorch 的 105ms 逐项计时，再用 roofline 模型（估算性能理论上限的工具）算出理论下界（2 视角约 19.7ms）。"},
-        {"stage": "瓶颈", "text": "CPU 开销、计算图冗余、单个 kernel 低效——三类，清晰可数。"},
-        {"stage": "方案", "text": "CUDA graph → 图简化 → Triton 调优，层层递进，每步都有计时数据支撑。"}
+        {
+          "stage": "约束",
+          "text": "33ms 内反应，单张 4090，模型不能改。"
+        },
+        {
+          "stage": "测量",
+          "text": "从最朴素 PyTorch 的 105ms 逐项计时，再用 roofline 模型（估算性能理论上限的工具）算出理论下界（2 视角约 19.7ms）。"
+        },
+        {
+          "stage": "瓶颈",
+          "text": "CPU 开销、计算图冗余、单个 kernel 低效——三类，清晰可数。"
+        },
+        {
+          "stage": "方案",
+          "text": "CUDA graph → 图简化 → Triton 调优，层层递进，每步都有计时数据支撑。"
+        }
       ],
       "blocks": [
-        {"evidence": "stated", "text": "第一层消除 CPU 开销：用 CUDA graph 把 1000 多个 kernel 的「启动流程」录制下来交给 GPU 一次性重放（想象把散装零件打包成标准件，省掉 CPU 逐个下令的时间），绕开 Python 逐条派发，约提速 2 倍。"},
-        {"evidence": "stated", "text": "第二层简化计算图：折叠 RMS norm（一种让数值稳定的归一化层）的仿射参数、折叠 action-time embedding（给动作打时间标签的模块）的线性层、把 QKV 投影（注意力机制里把输入变成「查询/键/值」三组向量的变换）合并成一个大矩阵乘，结果等价但省约 7-8ms。"},
-        {"evidence": "stated", "text": "第三层深入 kernel：用 Triton 手工调优 GEMM（矩阵乘法，深度学习最核心的运算）的分块参数、融合 gated linear 层、把 bias/残差/激活这些零碎计算融进矩阵乘，再省约 8ms。"},
-        {"evidence": "stated", "text": "最终结果：2 视角推理从 openpi/jax（一种官方实现）的 53.7ms 降到 27.3ms，跨过 30 FPS 门槛；最朴素 PyTorch 的 105ms 被压到 20ms（1 视角）。"},
-        {"evidence": "reconstructed", "text": "注意作者的节奏：先摘「低垂果实」（收益大、改动小），再啃「硬骨头」（单 kernel 深度优化），并用 roofline 下界告诉自己「还剩最多 30% 空间」——这是典型的工程方法论，不是天才灵光。"}
+        {
+          "evidence": "stated",
+          "text": "第一层消除 CPU 开销：用 CUDA graph 把 1000 多个 kernel 的「启动流程」录制下来交给 GPU 一次性重放（想象把散装零件打包成标准件，省掉 CPU 逐个下令的时间），绕开 Python 逐条派发，约提速 2 倍。"
+        },
+        {
+          "evidence": "stated",
+          "text": "第二层简化计算图：折叠 RMS norm（一种让数值稳定的归一化层）的仿射参数、折叠 action-time embedding（给动作打时间标签的模块）的线性层、把 QKV 投影（注意力机制里把输入变成「查询/键/值」三组向量的变换）合并成一个大矩阵乘，结果等价但省约 7-8ms。"
+        },
+        {
+          "evidence": "stated",
+          "text": "第三层深入 kernel：用 Triton 手工调优 GEMM（矩阵乘法，深度学习最核心的运算）的分块参数、融合 gated linear 层、把 bias/残差/激活这些零碎计算融进矩阵乘，再省约 8ms。"
+        },
+        {
+          "evidence": "stated",
+          "text": "最终结果：2 视角推理从 openpi/jax（一种官方实现）的 53.7ms 降到 27.3ms，跨过 30 FPS 门槛；最朴素 PyTorch 的 105ms 被压到 20ms（1 视角）。"
+        },
+        {
+          "evidence": "reconstructed",
+          "text": "注意作者的节奏：先摘「低垂果实」（收益大、改动小），再啃「硬骨头」（单 kernel 深度优化），并用 roofline 下界告诉自己「还剩最多 30% 空间」——这是典型的工程方法论，不是天才灵光。"
+        }
       ]
     },
-
     "experiment": {
       "title": "实验到底证明了什么",
       "intro": "论文没停在跑分，而是做了真实世界验证。关键要想清楚：这个实验**到底证明了什么，又没证明什么**。",
       "blocks": [
-        {"evidence": "stated", "text": "实验设计：两个上下对齐的夹爪夹住一支笔，上方夹爪松开后，下方夹爪要在正确时机闭合接住它。夹爪开合仅 60ms（约两帧画面），而且相机看不到上方夹爪，无法直接观察松手时刻——系统必须靠「预判」而非「看到」来抓。"},
-        {"evidence": "stated", "text": "相机是 30 FPS 的 720P USB 相机，测量延迟约两帧（一帧在 ISP——相机把原始信号转成图像的环节，一帧在 USB 传输）；笔要下落约 30cm 才被接住。训练数据：600 个 episode（一段完整的示范轨迹），用官方 openpi 仓库训练。"},
-        {"evidence": "stated", "text": "结果：连续 10 次实验全部成功（100%），端到端反应 <200ms。作者还做了人类对照：人接住他人手中落下的笔，30cm 已是反应距离下限，说明系统的反应速度与人类相当。"},
-        {"evidence": "stated", "text": "但要看清边界：作者自己承认「从学习角度看这结果很 trivial（微不足道），LeNet 甚至 SVM 这类简单模型也能做到」——所以这个实验证明的是**系统延迟**达标，而不是**模型能力**有多强。"}
+        {
+          "evidence": "stated",
+          "text": "实验设计：两个上下对齐的夹爪夹住一支笔，上方夹爪松开后，下方夹爪要在正确时机闭合接住它。夹爪开合仅 60ms（约两帧画面），而且相机看不到上方夹爪，无法直接观察松手时刻——系统必须靠「预判」而非「看到」来抓。"
+        },
+        {
+          "evidence": "stated",
+          "text": "相机是 30 FPS 的 720P USB 相机，测量延迟约两帧（一帧在 ISP——相机把原始信号转成图像的环节，一帧在 USB 传输）；笔要下落约 30cm 才被接住。训练数据：600 个 episode（一段完整的示范轨迹），用官方 openpi 仓库训练。"
+        },
+        {
+          "evidence": "stated",
+          "text": "结果：连续 10 次实验全部成功（100%），端到端反应 <200ms。作者还做了人类对照：人接住他人手中落下的笔，30cm 已是反应距离下限，说明系统的反应速度与人类相当。"
+        },
+        {
+          "evidence": "stated",
+          "text": "但要看清边界：作者自己承认「从学习角度看这结果很 trivial（微不足道），LeNet 甚至 SVM 这类简单模型也能做到」——所以这个实验证明的是**系统延迟**达标，而不是**模型能力**有多强。"
+        }
       ]
     },
-
     "limitation": {
       "title": "还有什么问题",
       "intro": "先别急着看作者的自我批评，你自己先挑毛病：这套方法有什么软肋？",
       "scaffold": [
-        {"id": "a", "text": "优化高度依赖特定硬件（RTX 4090）和特定模型（π0），迁移到别的硬件/模型要重新调优", "valid": true, "why": "tile 参数、partial split-k（矩阵乘的拆分策略）、roofline 参数都针对 4090 这块卡标定，换硬件要重做。"},
-        {"id": "b", "text": "480Hz 力控闭环只是框架设想，没有实际实现和验证", "valid": true, "why": "Full Streaming Inference（完整流式推理框架）全文只是设计草图，作者明确说实现细节省略、留待后续。"},
-        {"id": "c", "text": "抓笔任务太简单，不能证明复杂任务上的实时能力", "valid": true, "why": "作者亲口承认从学习角度微不足道，实验只验证延迟、不验证能力。"},
-        {"id": "d", "text": "优化后模型精度明显下降", "valid": false, "why": "论文没报告精度下降——这是「无法确定」，不能当成已成立的缺陷。"}
+        {
+          "id": "a",
+          "text": "优化高度依赖特定硬件（RTX 4090）和特定模型（π0），迁移到别的硬件/模型要重新调优",
+          "valid": true,
+          "why": "tile 参数、partial split-k（矩阵乘的拆分策略）、roofline 参数都针对 4090 这块卡标定，换硬件要重做。"
+        },
+        {
+          "id": "b",
+          "text": "480Hz 力控闭环只是框架设想，没有实际实现和验证",
+          "valid": true,
+          "why": "Full Streaming Inference（完整流式推理框架）全文只是设计草图，作者明确说实现细节省略、留待后续。"
+        },
+        {
+          "id": "c",
+          "text": "抓笔任务太简单，不能证明复杂任务上的实时能力",
+          "valid": true,
+          "why": "作者亲口承认从学习角度微不足道，实验只验证延迟、不验证能力。"
+        },
+        {
+          "id": "d",
+          "text": "优化后模型精度明显下降",
+          "valid": false,
+          "why": "论文没报告精度下降——这是「无法确定」，不能当成已成立的缺陷。"
+        }
       ],
       "author_limitations": [
-        {"evidence": "stated", "text": "「From a learning perspective, this result is trivial」——作者承认任务太简单，真正贡献在系统/延迟而非算法/精度。"},
-        {"evidence": "stated", "text": "Full Streaming Inference（480Hz 力控 + 30Hz 视觉 + <1Hz 文本三环）只是设计草图，实现细节全部省略。"},
-        {"evidence": "stated", "text": "software barrier（软件同步屏障，一种省同步开销的做法）融合实测反而变慢，只用作「同步开销下界」的论证工具，未真正采用。"},
-        {"evidence": "stated", "text": "partial split-k 收益不到 0.1ms，作者自评是「有趣的案例」而非关键贡献。"}
+        {
+          "evidence": "stated",
+          "text": "「From a learning perspective, this result is trivial」——作者承认任务太简单，真正贡献在系统/延迟而非算法/精度。"
+        },
+        {
+          "evidence": "stated",
+          "text": "Full Streaming Inference（480Hz 力控 + 30Hz 视觉 + <1Hz 文本三环）只是设计草图，实现细节全部省略。"
+        },
+        {
+          "evidence": "stated",
+          "text": "software barrier（软件同步屏障，一种省同步开销的做法）融合实测反而变慢，只用作「同步开销下界」的论证工具，未真正采用。"
+        },
+        {
+          "evidence": "stated",
+          "text": "partial split-k 收益不到 0.1ms，作者自评是「有趣的案例」而非关键贡献。"
+        }
       ]
     },
-
     "future": {
       "title": "后续论文怎么继续",
       "intro": "一篇好论文会自己指出「下一步往哪走」。看作者怎么给自己铺路。",
       "blocks": [
-        {"evidence": "stated", "text": "硬件换代：RTX 5090 提供 1.79TB/s 带宽（每秒能搬运的数据量）和更多算力，作者预计 7B 参数模型会是下一个里程碑，60-120 FPS 的视觉延迟成为可能方向。"},
-        {"evidence": "stated", "text": "框架落地：把 480Hz 的 Full Streaming Inference 真正实现并验证，触及实时力控（直接高频控制力度）的门槛。"},
-        {"evidence": "stated", "text": "能力升级：引入 VLM（视觉语言模型）作为 System I（借鉴认知科学里「快思考」的概念，负责直觉式的高层反应）做高层场景感知与任务规划，引入力觉、视觉触觉等多感官信息，处理更复杂的实时任务。"},
-        {"evidence": "stated", "text": "数据挑战：若追求 >480Hz 的更高控制频率，每秒要收集上千级演示数据，这本身也是难题。"}
+        {
+          "evidence": "stated",
+          "text": "硬件换代：RTX 5090 提供 1.79TB/s 带宽（每秒能搬运的数据量）和更多算力，作者预计 7B 参数模型会是下一个里程碑，60-120 FPS 的视觉延迟成为可能方向。"
+        },
+        {
+          "evidence": "stated",
+          "text": "框架落地：把 480Hz 的 Full Streaming Inference 真正实现并验证，触及实时力控（直接高频控制力度）的门槛。"
+        },
+        {
+          "evidence": "stated",
+          "text": "能力升级：引入 VLM（视觉语言模型）作为 System I（借鉴认知科学里「快思考」的概念，负责直觉式的高层反应）做高层场景感知与任务规划，引入力觉、视觉触觉等多感官信息，处理更复杂的实时任务。"
+        },
+        {
+          "evidence": "stated",
+          "text": "数据挑战：若追求 >480Hz 的更高控制频率，每秒要收集上千级演示数据，这本身也是难题。"
+        }
       ]
     },
-
     "next_question": {
       "title": "下一个研究问题是什么",
       "intro": "训练的最高目标不是记住结论，而是你能从这里长出自己的问题。论文已经给了线索，试着把它变成「你的」下一个研究问题。",
@@ -138,23 +278,70 @@
         "如果把「又快」和「聪明」结合：高频力控 + 高层 VLM 规划，中间该怎么分工？"
       ],
       "blocks": [
-        {"evidence": "reconstructed", "text": "一个通用的思考框架：从「局限」出发，把每个「不能/没做」翻译成一个可验证的问题，就是论文最诚实的下一步。"}
+        {
+          "evidence": "reconstructed",
+          "text": "一个通用的思考框架：从「局限」出发，把每个「不能/没做」翻译成一个可验证的问题，就是论文最诚实的下一步。"
+        }
       ]
     }
   },
-
   "timeline_domain": [
-    {"year": "长期", "title": "传统控制：高频但「不聪明」", "text": "力控/扭矩控制在 1kHz 级别做精确控制，反应极快，但缺乏语义理解与泛化。", "evidence": "reconstructed"},
-    {"year": "2024", "title": "VLA 兴起：聪明但「慢」", "text": "π0 等十亿参数 VLA（视觉-语言-动作模型）带来强泛化，但单次推理数百毫秒，被认为只能做「慢而聪明」的中层控制。", "evidence": "stated"},
-    {"year": "2025", "title": "本文：又快又聪明", "text": "证明 VLA 也能跑 30Hz、最高 480Hz 力控频率，打破「大模型无法实时」的成见。", "evidence": "stated"}
+    {
+      "year": "长期",
+      "title": "传统控制：高频但「不聪明」",
+      "text": "力控/扭矩控制在 1kHz 级别做精确控制，反应极快，但缺乏语义理解与泛化。",
+      "evidence": "reconstructed"
+    },
+    {
+      "year": "2024",
+      "title": "VLA 兴起：聪明但「慢」",
+      "text": "π0 等十亿参数 VLA（视觉-语言-动作模型）带来强泛化，但单次推理数百毫秒，被认为只能做「慢而聪明」的中层控制。",
+      "evidence": "stated"
+    },
+    {
+      "year": "2025",
+      "title": "本文：又快又聪明",
+      "text": "证明 VLA 也能跑 30Hz、最高 480Hz 力控频率，打破「大模型无法实时」的成见。",
+      "evidence": "stated"
+    }
   ],
-
   "timeline_tech": [
-    {"year": "早期", "title": "朴素 PyTorch", "text": "Python 逐条派发 CUDA kernel（GPU 上的一小段计算任务），kernel 一多，CPU 派发开销就成了大头。", "evidence": "reconstructed"},
-    {"year": "2018+", "title": "编译优化：XLA / TensorRT / TVM", "text": "通过算子调度、融合、自动调优减少 kernel 数量与显存搬运。", "evidence": "stated"},
-    {"year": "2019", "title": "Triton", "text": "一种方便手写高效 GPU 代码的语言，把张量拆成 tile（小块）直接映射到硬件，让非专家也能写高效 kernel。", "evidence": "stated"},
-    {"year": "2022", "title": "FlashAttention", "text": "IO-aware 注意力实现，用分块减少 HBM（高带宽显存）↔SRAM（更快的片上内存）之间的搬运。", "evidence": "stated"},
-    {"year": "2024", "title": "CUDA graph", "text": "录制并重放 kernel 流，彻底消除 CPU launch 开销——本文的第一层武器。", "evidence": "stated"},
-    {"year": "2025", "title": "本文：系统化应用到 VLA", "text": "把上述手段整合成完整管线，并用 roofline 下界论证「接近最优」。", "evidence": "stated"}
-  ]
+    {
+      "year": "早期",
+      "title": "朴素 PyTorch",
+      "text": "Python 逐条派发 CUDA kernel（GPU 上的一小段计算任务），kernel 一多，CPU 派发开销就成了大头。",
+      "evidence": "reconstructed"
+    },
+    {
+      "year": "2018+",
+      "title": "编译优化：XLA / TensorRT / TVM",
+      "text": "通过算子调度、融合、自动调优减少 kernel 数量与显存搬运。",
+      "evidence": "stated"
+    },
+    {
+      "year": "2019",
+      "title": "Triton",
+      "text": "一种方便手写高效 GPU 代码的语言，把张量拆成 tile（小块）直接映射到硬件，让非专家也能写高效 kernel。",
+      "evidence": "stated"
+    },
+    {
+      "year": "2022",
+      "title": "FlashAttention",
+      "text": "IO-aware 注意力实现，用分块减少 HBM（高带宽显存）↔SRAM（更快的片上内存）之间的搬运。",
+      "evidence": "stated"
+    },
+    {
+      "year": "2024",
+      "title": "CUDA graph",
+      "text": "录制并重放 kernel 流，彻底消除 CPU launch 开销——本文的第一层武器。",
+      "evidence": "stated"
+    },
+    {
+      "year": "2025",
+      "title": "本文：系统化应用到 VLA",
+      "text": "把上述手段整合成完整管线，并用 roofline 下界论证「接近最优」。",
+      "evidence": "stated"
+    }
+  ],
+  "_source_text": "\n===== 第 1 页 =====\nRunning VLAs at Real-time Speed\nYunchao Ma1 Yizhuang Zhou2 Yunhuan Yang1 Tiancai Wang1 Haoqiang Fan1\n1 Dexmal 2 StepFun\n{myc, yyh, wtc, fhq}@dexmal.com jupiter@stepfun.com\nframe 1\nframe 2\nframe 3\nframe 4\nframe 5\nframe 6\nframe 7\ncamera readout\ninference\nmovement\nevent observed\naction completed\n< 33ms\n66ms\n60ms\nnothing happened\nFigure 1. Grasping a falling pen. The task has a very stringent time constraint. After observing the pen coming, these is only little time before\nthe action must be initiated. We implemented30 FPS inference of VLA modelso that all frames in our camera stream can be processed,\nand the end-to-end reaction time can be shorter than 200 ms. This is on par with an average human in this test.\nAbstract\nIn this paper, we show how to run π0-levelmulti-view\nVLA at30Hzframe rate and at most480Hztrajectory fre-\nquency using a single consumer GPU. This enables dy-\nnamic and real-time tasks that were previously believed to\nbe unattainable by large VLA models. To achieve it, we\nintroduce a bag of strategies to eliminate the overheads\nin model inference. The real-world experiment shows that\nthe π0 policy with our strategy achieves a100%success\nrate in grasping a falling pen task. Based on the results,\nwe further propose a full streaming inference framework\nfor real-time robot control of VLA. Code is available at\nhttps://github.com/Dexmal/realtime-vla.\n1. Introduction\nLearning-based robotic control algorithms are prevailing,\nespecially billion-parameter VLA models [2, 3, 16, 18]. De-\nspite their impressive generalization, these models face a\nlatency issue. Many real-world tasks, such as grasping a mov-\ning object, tend to require a quick reaction time. However, a\nforward pass of VLA models typically requires hundreds of\nmilliseconds, impeding quick reactions that were expected\nfrom a dynamic robot. Running less than 33 ms ≈1/30 s\nMethods 1 view 2 views 3 views\nnaive torch 105.0 ms 106.5 ms 113.9 ms\nopenpi/jax 43.8 ms 53.7 ms 67.6 ms\nours 20.0 ms 27.3 ms 36.8 ms\nTable 1. π0 [2] inference speed comparison on a single RTX 4090.\nThe measurements above assume empty prompt text and 63 chunk\nlength. We push the inference time to camera frequency.\nis the turning point that enables real-time operation, which\nmeans all frames of a 30 FPS RGB video stream can be fully\nprocessed. Even if 34 ms is achieved, we must drop frames\nevery now and then during continuous operation. If the event\nwe need to detect happens to occur at the dropped frame, the\nlatency will be increased by a whole frame time.\nIn this paper, we make a crucial observation that VLAs\nare indeed capable of running in real-time under a single con-\nsumer RTX 4090 GPU. After our optimization, we achieve a\nlatency of 27.3 ms given two input views, significantly faster\nthan “official” inference provided by theopenpi [2] project\n(See Tab. 1). The performance gain comes from our engi-\nneering of the inference pipeline. First, we use the CUDA\ngraph approach to eliminate all CPU overheads. Then we\nmake transformations on the computational graph to reduce\nthe total MAC workload or the number of kernel launches.\n1\narXiv:2510.26742v1  [cs.RO]  30 Oct 2025\n\n===== 第 2 页 =====\nAfter that, we rearrange the memory and tensor operations\ninside individual kernels to better exploit parallelism. With\nall of the above strategies, we successfully push inference\ntime to 30 FPS and above, meeting the demand for real-time\ncontrol.\nTo verify the effectiveness of our real-time strategy, we\ndesign a simple proof-of-concept experiment in real world.\nAs shown in Fig. 1, two vertically aligned grabbers are made\nto hold a marker pen. After the first grabber above releases\nthe pen, the second grabber is required to catch the pen at\nthe right time. Hundreds of grasping data is collected by au-\ntomatic rules. Theπ0 model is trained to control the grabber\nto grasp a pen falling from a higher disturbed position. Such\na task has a very stringent time constraint. During model\ninference, theπ0 model achieves a 100% success rate on the\njob thanks to the largely optimized inference time.\nThis result encourages us to rethink how to adopt the\nVLAs into a real-time robot system. Currently, the robotic\ncontrol system mainly includes three layers and there are\ndifferent algorithms operating with a hierarchy of control\nfrequencies. The VLAs are believed to live in the layer of\nmid-level control. Controls of higher frequencies, namely\nforce or torque control, are believed to be handled by other\nalgorithms. However, we find that the VLA itself contains\ndifferent tiers of input and output frequencies. We directly\nmap the structure of VLA into a full control algorithm and\ncall it the Full Streaming Inference mode. The system is\ncapable of generating control signals at maximum 480 Hz.\nIt touches the threshold of real-time force control.\nExtending our framework to do more challenging real-\ntime tasks remains for future researchers. Researches may\nfurther introduce the vision-language model (VLM) as the\nSystem I on top of VLA part with 1-10 Hz frequency for\nhigh-level scene perception and task planning. They may\nalso consider introducing multi-sensory information, such as\nforce and visual-tactile, into the action expert for real-time\naction chunking decoding.\n2. Preliminary onπ 0-level Model\nπ0 [2] is an excellent vision-language-action (VLA) policy\nfor general robotic manipulation. Hybrid training on both\nrobotic and multimodal data is performed for open-world\ngeneralization [3]. From the perspective of model architec-\nture, it mainly includes two parts: vision-language model\n(VLM) and action expert (AE).\nVLMbackbone is initialized with PaliGemma [ 1], which is\na multimodal model with 3B parameters. It is composed of\na vision encoder SigLIP [22] with 400M parameters and a\nlarge language model (LLM) Gemma [19] with 2.6B param-\neters. The representations of PaliGemma are learned from\nlarge-scale web-data pretraining, providing strong prior for\nparallel action decoding of AE part below.\nAEis coupled with the VLM backbone through the mixture-\n1 view 2 views 3 views\n0\n25\n50\n75\n100\n125\n150\n175\n200Time (ms)\n105.0 106.5\n113.9\n35.2\n43.5\n53.9\n28.2\n35.7\n45.8\n20.0\n27.3\n36.9\n13.7 20.6 27.6\nnaive pytorch\n+ cuda graph\n+ simplified graph\n+ optimized kernels\nroofline\nFigure 2. Breakdown of the model running time. From a plain\nnaive pytorch implementation, we show how to reduce redundant\ncomputation and eliminate CPU overhead (Sec. 3). Then we use\ntechniques to optimize the individual kernels (Sec. 4). Finally we\nestablish a lower bound (Sec. 5) that is not far from the current\nimplementation.\nof-expert (MoE) architecture [ 15]. The multiview images\nand task prompt are routed to the larger VLM backbone,\nwhile the states and action noises are routed to the AE. The\nnetwork of AE is downsized from Gemma with smaller\nwidth and MLP dimension, resulting in 300M parameters.\nAE is modeled through flow matching [12] to produce the\nprediction of action chunking.\n3. Eliminating the Overheads\nIn the following sections, we show a step-by-step procedure\nto construct the inference program. Our starting point is\na plain pytorch nn.Module implementation that literally\nfollows the model structure. The measured running time is\nabove 100 ms, which is far from our goal. The first steps\nwe take focus on some “low hanging fruits” that drastically\nspeed up computation by getting rid of CPU overhead (the\n“+cuda graph” entry in Fig. 2) and removing redundant com-\nputation (the “+simplified graph” entry).\n3.1. Removing CPU Overhead\nNowadays, neural network inference is commonly driven\nby Python code that launches underlying CUDA kernels.\nHowever, the Python part has significant overhead when the\nnumber of kernels is large. Inπ0 model, the total number of\nkernels launched per inference step is estimated to be more\nthan a thousand, which makes the CPU issue urgent.\nThere are several Ahead-Of-Time (AOT) or Just-In-Time\n(JIT) compilation techniques available. However, we find the\nsimplest and most effective way is to use the CUDA graph\nmechanism. In a CUDA graph, we can record the stream of\n2\n\n===== 第 3 页 =====\nhidden\n1024\nQ\n2048\nK\n256\nV\n256\n1024x2048 1024x256 1024x256\nhidden\n1024\nK\n256\nQ\n2048\n1024x2560\nk\ncache\n(3) QKV fusion\nembed\n1024\nembed\n1024\nembed\n(2) Folding layers in action-time embedding\n32x1024\naction\n32\nhidden\n1024\nconcat\ntime\n1\n1024x1024\nfeature\n1024\n2048x1024\nsilu\naction\n32\nhidden\n1024\n32x1024\n1024add\nbias[time]\nsilu\nfeature\n1024\n1024x1024\nV\n256\nv\ncache\nfeature\n1024\nnorm-ed\n1024\n* affine rms\n1024 x 2560\nhidden\n2560\n(1) Folding RMS norm weight\nfeature\n1024\nrms\n1024 x 2560\nhidden\n2560\n* affine \nFigure 3. Transformations to simplify the computational graph.\n(1) Absorbing RMS affine parameters to the next linear layer; (2)\nFolding linear layers in action-time embedding; (3) Fusing QKV\nas one weight matrix.\nlaunched kernels during model inference and replay them\nafterwards. During replay, the kernels are launched purely\nby GPU and the driver, removing all Python execution over-\nhead. The CUDA graph approach needs to ensure that all\nkernel codes and buffer pointers are constant from run to\nrun. In our case of VLA, this can be true, as there are no\ndynamic branches in the underlying transformer blocks. As\nshown in Fig. 2, this speeds up inference by around two fold,\nsqueezing out the major part of the inference overhead in\nour naive implementation.\n3.2. Simplifying the Graph\nIn the next step, we take a closer look at the network struc-\nture and spot some computation that can be rewritten in an\nequivalent way but runs faster. In compiler literature this is\nreminiscent to the “constant folding” technique, but in the\ncontext of model inference there are more that we can do.\nWe list all transformations taken and explain them one by\none (see Fig. 3).\nThe first is to fuse the affine parameters in the RMS norm\nlayer [23] into the subsequent linear layer. Because both\noperations are linear, we can use the associativity law to\nmodify the weights in the linear layer to achieve it. The\nsecond is to fold the “action time encoder” in the action\nexpert. The action value is up-projected to 1024 dimensions\nand concatenated with a projected timestep encoding vector.\nThe result is fed into another linear layer. For the action value\nbranch, we can fold the two consecutive kernels into one as\nthere is no nonlinearity between them. For the time branch,\nas there are only 10 different time steps during inference, we\ncan tabulate the result of the linear layer and fuse it all the\nway to the bias vector right before SiLU operation [9]. This\nreduces the number of operators and also saves MACs. The\nthird is to fuse QKV projections together. We can combine\nthe matrices used in Q, K, and V , to a single large matrix\nand get the individual results back by slicing the resulting\ntensor. This reduces the number of kernels and increases\nparallelization. We can also fuse RoPE [17] operation into\nthe matrix multiplication, and precompute the weights used\nin RoPE. As shown in Fig. 2, these modifications reduce the\ninference time by 7-8 ms.\n3.3. Avoiding Other Overheads\nThere are other overheads outside the GPU part but are also\nworth mentioning. The first is image resizing, which can be\nas slow as several milliseconds if not implemented correctly.\nFor this part, we observe that most camera ISP support many\ndifferent output resolutions. Using a resolution that is close\nto the desired 224×224, e.g. 240×320, helps with this issue.\nAlso, carefully writing the resize code by hand reduces in-\nference time significantly, since we find the implementation\nof JAX version sub-optimal. We measure the time that per-\nforming image resizing under correct implementation takes\nless than 60us on desktop x86 CPU. In the rest of the paper,\nwe do not count the time.\nIn addition to image resizing, there are other tips for the\nwhole inference system. Copying data back and forth be-\ntween CPU and GPU requires pinned memory for optimal\nperformance. Making all CPU buffers static can reduce jit-\nter. Using zero-copying to handle camera frames reduces\nlatency. This paper do not go further into these details as\nthey are out-of-scope of the paper, but we stress that careful\nimplementation in all parts of the system is crucial for an\nend-to-end real-time system.\n4. In-Depth Optimization of the Kernels\nAfter harvesting the low-hanging fruits, it is time to attack the\n“hard core” parts. The computation graph after simplification\nis shown in Fig. 4. There are 24 GEMM-like operations and\n3\n\n===== 第 4 页 =====\n64 x 1024 x 2560\n576 x 256 x 512\n512 x 586 x 256\n64 x 2048 x 1024\n64 x 1024 x 8192\n64 x 4096 x 1024\n64 x 1024 x 32\n63 x 1024 x 1024\n63 x 32 x 1024\n18x\n10x\n512 x 2048 x 2560\n4096 x 256 x 512\n4096 x 512 x 256\n512 x 2048 x 2048\n512 x 2048 x 32768\n512 x 16384 x 2048\n18x\n512 x 1152 x 3456\n512 x 72 x 512\n512 x 1152 x 1152\n512 x 1152 x 4304\n512 x 4304 x 1152\n27x\n512 x 588 x 1152\n512 x 512 x 72\n16x\n16x\nimg2col\nlayernorm\nattention\nsoftmax\nshuffle\nshuffle\nresidual + bias\nbias\nbias\nlayernorm\nbias + gelu\nresidual + bias\n512 x 1152\n512 x1152\nrmsnorm\nrope\nshuffle\nsoftmax\nshuffle\nresidual\nrmsnorm\ngate+gelu\nresidual\n512 x 2048\n512 x 2048\nrmsnorm\nbias + silu\nbias\nrope\nshuffle\nsoftmax\nshuffle\nresidual\nrmsnorm\ngate+gelu\nresidual\n64x1024\n64x1024\nbias\n27x1152\nx3456\n27x1152\nx1152\n27x1152\nx4304\n27x4304\nx1152\n3456\n3456\n3456\n18x2048\nx2560\n18x2048\nx2048\n18x2048\nx32768\n18x16384\nx2048\n512 x 1152 x 2048\n1152x2048\nbias\n2048\n18x1024\nx2560\n18x2048\nx1024\n18x1024\nx8192\n18x4096\nx1024\n1024x32\n32x1024\n1024x1024\n18x512x256x2\n1024\n1024\n17x\n1 x 32 x 1024\nconcat\nbias\nobservation (2, 3, 224, 224)\nstate (32,)\nnoise (63, 32)\nlanguage (0, 2048)\nconcat\nFigure 4. Computation flow of π0 model. The model consists of a vision encoder (left), LLM (middle) and action expert (right). All\ncomponents can be further decomposed into a series of matmuls and associated scalar operations.\nassociated scalar operators in total. Here are some strategies\nfor further improvements below.\n4.1. Tuning Tile Parameters of GEMM\nThe default pytorch implementation of matmul goes to\ncuBLAS, which dispatches to compiled cutlass kernels ac-\ncording to the matrix dimensions. However, some of the\nkernels do not receive the optimal configuration. We manu-\nally tuned the tiling strategies using a Triton implementation\nand tabulated the results in Tab. 2, saving about 1.5 ms from\nTriton optimization. Note that transformer in LLM only runs\n17 times, instead of 18, of attention and FFN layers in the\nTable. It is because only the KV caches are passed to the AE,\nso the features of the last layer is not required, which further\nsaves about 0.7 ms.\n4.2. Fusing Gated Linear Layers\nIn the transformer part of the model, the FFN uses a gated\nup-projection implementation. The feature is multiplied\nby two different weights and the results are combined as\nFC 1(x,w 1)·GELU(FC 2(x,w 2)). Here, w1 and w2 are\nthe weights for two fully-connected layers FCs . During\ncomputation, these two matmuls can run parallel, and more\nimportantly, their load and store operations can be coalesced.\nAfter loading one input tile, two weight tiles can be loaded\nfor computation. When the results are written back to mem-\nory, only the combined result is required to be written, which\nreduces the memory operation time and improves tensor\nutilization. In this step, inference performance is further\nimproved by 1.7 ms.\n4.3. Partial Split-k\nIn the computation graph (see Fig. 4), a special GEMM\nof size 512×1152×1152 is worth mentioning. The core\nproblem of this size is that when using 64×64 tile, there\nwill be 144 blocks. It is not a multiple of 128, which means\nthe blocks fail to be distributed to the 128 SMs in RTX 4090.\nUsing smaller blocks helps make the distribution more even,\nbut reduces overall efficiency. Further splitting along the K\ndimension produces higher overhead.\nOur observation is that we can split the GEMM into two\nparts. The first is a 512×1152×1024 matmul, which can\nbe evenly distributed to the SMs using 64×64 tile. The\nsecond is 512×1152×128 , which can be partitioned to the\n128 SMs using 32×32 block and split-2 partition in the K\ndimension. The two parts can be written in a single kernel\nas they do not depend on each other. The performance gain\nfrom this optimization is less than 0.1 ms, but we think it is\nan interesting case for further study.\n4\n\n===== 第 5 页 =====\nTimes Shape Roofline cuBLAS Triton Strategy Oprs Actual\n1 512×588×1152 0.004 0.036 0.044 triton 64,64,32 img2col, bias 0.046\n27 512×1152×3456 0.602 0.984 0.870 triton 64,64,32 ln, bias 0.926\n27 attn 16×512 2×72 0.178 / / torch softmax 0.430\n27 512×1152×1152 0.201 0.474 0.396 partial split-4 bias, res 0.409\n27 512×1152×4304 0.750 1.221 1.074 triton 64,64,64 ln, gelu 1.160\n27 512×4304×1152 0.750 1.190 1.143 triton 64,64,64,4 bias, res 1.158\nVision Encoder 2.485 4.334 3.957 4.059\n1 512×1152×2048 0.013 0.041 0.041 triton 64,64,64 ln, bias 0.042\n18 512×2048×2560 0.529 0.823 0.761 triton 64,64,64 rms, rope 0.862\n17 attn 8×512 2×256 0.200 / / torch softmax 0.406\n17 512×2048×2048 0.399 0.495 0.511 triton 128,64,64 res 0.524\n17 512×2048×32768 6.391 7.359 7.317 fused gate ln, gate 7.274\n17 512×16384×2048 3.195 3.751 3.696 triton 128,64,64 res 3.740\nLLM 10.727 12.875 12.732 12.503\n1 1×32×1024 0.000 0.027 0.026 triton 16, 16, 32 bias 0.026\n10 63×32×1024 0.001 0.057 0.036 triton 32, 32, 32 bias, silu 0.038\n10 63×1024×1024 0.021 0.072 0.060 triton 32, 32, 64 bias 0.063\n180 64×1024×2560 0.934 1.718 1.479 triton 64, 32, 64 rms, rope 1.738\n180 512×256×576 0.149 0.723 0.602 triton 32, 32, 64 softmax 1.071\n180 512×576×256 0.149 0.883 0.554 triton 32, 32, 64 0.590\n180 64×2048×1024 0.747 1.164 1.203 triton 32, 32, 128 res 1.237\n180 64×1024×8192 2.990 3.703 3.559 fused gate rms, gate 3.847\n180 64×4096×1024 1.495 2.367 2.226 triton 16, 32, 256 res 2.290\n10 63×1024×32 0.001 0.055 0.048 triton 16, 16, 256 res 0.061\nAction Expert 6.486 10.808 9.831 11.001\nIn total 19.698 28.017 26.520 27.299\nTable 2. Detailed configuration of the kernels. This table assumes two views and no prompt. We list the matmul dimensions and the scalar\noperations associated with each matmul. We also measured the cuBLAS (accessed by torch.matmul) time of the corresponding matmul, the\ntile-based triton implementation time, and the actual running time after using the optimal implementation strategy and fusing the scalar\noperations. The “torch” strategy means using plain torch implementation is good enough. The “triton n,m,k(,split)” stands for the tile size of\nthe matmul and the potential split-k dimension. There are also other special strategies that are described in Sec 4.\n4.4. Fusing the Scalar Operations\nAfter optimizing the GEMMs, it is time to deal with the\nscalar operations. The bias, residual shortcut and activation\noperations can be trivially combined into the GEMM. For\nthe RMS norm, we first compute the token-level stats into a\nseparate buffer. Then in the next GEMM, we divide the mul-\ntiplied result by the corresponding factor after all accumu-\nlations. These operation reduces the total memory footprint.\nThe gain in this step is hard to estimate, but we attribute the\nremaining gain in Fig. 2, which measures roughly 4 ms.\n5. Establishing Lower Bound\nIn this section, we show how far we are from an “ideal”\nimplementation. Our arguments are based on two parts: the\nunavoidable time for the matrices, and the non-negligible\ntime of synchronization.\n5.1. Roofline of the GEMMs\nThe basic approach is the “roofline” model, which lower\nbounds the time of a computation by the maximum of doing\nall memory operations and all compute operations. In the\ncontext of model inference, this translates to calculation of\nthe HBM bandwidth and tensor core cycles.\nFor one BF16 GEMM operation of dimensionN×K×M ,\nthe lower-bound is as follows:\ntroofline = max( 2KM\nTbandwidth\n, NKM\nTcompute\n).\nIn the above equation, we consider memory operation only\nfor the second matrix. It is because in a network the first\nmatrix and the resultant matrix are usually the activation fea-\ntures, which can be allocated on the L2 cache. The network\nparameters on the other hand, are too large to be fully cached\nso we should account for it.\nFor RTX 4090, the claimed memory bandwidth is 1.01\nTB/s. The claimed BF16 MAC/s (with FP32 accumulation)\n5\n\n===== 第 6 页 =====\nis 82.6 T, but we observe that the using card has a boosted\nfrequency of 2.79G Hz and hence 91.4 TMAC/s in total.\nThese parameters are used in our computation in Tab. 2\n(for 2 input views). Summing the roofline values gives the\nfollowing results:\n1 view 2 views 3 views\n12.8 ms 19.7 ms 26.7 ms\nWe need to note that it is tricky to sum two consecutive\noperations when using the roofline model. Theoretically, for\ntwo sequential matmuls (e.g. in FFN), there is indeed chance\nto start part of the computation of the second matmul before\nthe first finishes. Then we need to take the two matmuls as\na whole to apply the roofline model, which mathematically\nmay be lower than the sum of the roofline values of the indi-\nvidual operators. However, we see a clear trend that most op-\nerations in vision encoder and LLM are computation-limited,\nand most operations in the AE are bandwidth-limited. There-\nfore, overlapping work across consecutive operators does\nnot affect the roofline argument for most cases. Thus, it is\nproper to use the sum-of-parts approach.\n5.2. Synchronization Overhead\nWe notice that there are a large number of kernels launched\nin the CUDA stream. For data consistency, the SMs need to\nwait for others to complete one kernel before launching the\nnext, which produces synchronization overhead.\nThere are totally 1378 matmuls show in Fig. 4 and an\nexperiment is performed to estimate the synchronization\noverhead. We run a simple kernel for 1378 times and we\nwrite one kernel that runs the computation inside a for loop\nfor the same amount of time without any synchronization, as\ncomparison baseline. The additional time after considering\nsynchronization should be an estimate of the overhead in\nmodel inference. We tested different synchronization meth-\nods. The first is consecutive kernel launches in the naive\npytorch code. It also contains CPU overhead, so the value\nis large. We used the CUDA graph to chain all kernels and\nget a result of 1.72 ms, which is close to our experience. The\nthird approach is a “software barrier” approach that we will\nexplain below.\nThe traditional view of the CUDA programming model\nsays we cannot explicitly synchronize across all blocks, as\nthey may not live together at all. However, in practice if we\nlaunch a number of blocks that equals the number of SMs,\nwe can make sure that all blocks run together and use global\nmemory to create a barrier. An example code (in Triton) is\nas follows:\nlock_goal += psize\ntl.atomic_add(lock_ptr, 1)\nwhile tl.atomic_or(lock_ptr, 0)\\\n< lock_goal:\npass\nSetting Time Overhead\nPytorch 13.81 ms +12.92 ms\nCuda graph 2.61 ms +1.72 ms\nSoftware barrier 1.75 ms +0.86 ms\nFused no sync 0.89 ms +0 ms\nTable 3. Measuring overhead time between kernels. We run a sim-\nple A+B computation on 256×1024 elements using 256 blocks for\n1378 times. We use a fused Triton kernel without any synchroniza-\ntion as the baseline time. Then we implement the computation with\ndifferent methods, and measuretsync as the extra time compared to\nthe baseline.\nThen to synchronize between the two kernels, we can\nwrite the two kernels as one and insert the barriew in between.\nWe find the approach above to be faster than the CUDA\ngraph approach. The overhead becomes 0.86 ms. However,\nusing the software barrier has a few consequences. First, the\ngrid size of the fused kernels need to be matched. Second,\nthe number of required registers and shared memory may\nincrease. Third, the code size of the kernel is increased,\nincurring overheads in other parts of the system. In practice,\nwe tried to fuse operators using the software barrier but\nfind negative performance gain. Hence we only use it as\nthe indicator of synchronization cost in the “lower bound”\nargument. After counting for the additional 0.86 ms, our\nupdated lower bounds become:\n1 view 2 views 3 views\n13.7 ms 20.6 ms 27.6 ms\nCompared to our performance in Fig. 2, we see the re-\nmaining room of improvement is at most 30%. It means that\nwe have been close to an optimal implementation.\n6. Full Streaming Inference\nIn this section, we will go further to explore the possibility\nof other control frequency loops beyond 30 FPS.\n6.1. Overlapped Streaming Inference\nOur core observation is thatoverlapping kernels increases\nthroughput. Specifically, we consider the AE kernel and\nVLM kernel. The former is IO bounded, and the latter com-\npute bounded. If we run the kernels together, both IO and\ncompute resource would be better utilized. This means from\na computational perspective, finding a way to run them con-\ncurrently, or,streamingthem, would be beneficial. We do a\nproof-of-concept measurement in the following table:\nCondition Time\nSequential"
 }

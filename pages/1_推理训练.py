@@ -331,6 +331,15 @@ def render_step(step_id, d):
         render_blocks_step(d)
 
 
+def render_source():
+    """每一步都能展开查看论文原文，对照 AI 拆解内容验证。"""
+    src = paper.get("_source_text", "").strip()
+    if not src:
+        return
+    with st.expander("📄 查看论文原文（对照验证）"):
+        st.text_area("论文原文", src, height=400, key="source_view")
+
+
 def render_coach():
     """每一步底部的「问教练」答疑区：读者不懂就问，教练结合当前步骤解答，不打断主线。"""
     st.divider()
@@ -395,6 +404,7 @@ def main():
     st.markdown(f"### 第 {step_idx + 1} 步 · {step_def['label']}")
 
     render_step(step_def["id"], step_data)
+    render_source()
     render_coach()
     render_nav()
 

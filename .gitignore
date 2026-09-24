@@ -12,3 +12,4 @@ test_lineage.py
 test_agent.py
 data/uploaded/
 test_restyle.py
+test_full_switch.py

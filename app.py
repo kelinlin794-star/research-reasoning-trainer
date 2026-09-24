@@ -94,7 +94,7 @@ def render_paper_card(pid, meta, is_dynamic=False, style="mixed"):
                 label_visibility="collapsed",
             )
             if new_label != cur_label:
-                if st.button("切换语言", key=f"restyle_{pid}", use_container_width=True):
+                if st.button("确认切换", key=f"restyle_{pid}", type="primary", use_container_width=True):
                     api_key = common.get_api_key()
                     if not api_key:
                         st.error("未配置 API Key。")
@@ -102,9 +102,11 @@ def render_paper_card(pid, meta, is_dynamic=False, style="mixed"):
                         with st.spinner("正在切换语言（约 30~60 秒）..."):
                             try:
                                 paper = common.load_paper(pid)
+                                paper["id"] = pid  # 强制锁定 id，防止被改写
                                 new_paper = parser.restyle_paper(paper, style_map[new_label], api_key)
+                                new_paper["id"] = pid  # 再次锁定
                                 common.overwrite_paper(new_paper)
-                                st.success("已切换语言。")
+                                st.toast("已切换语言 ✓")
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"切换失败：{e}")

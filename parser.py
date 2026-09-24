@@ -109,15 +109,28 @@ STYLE_INSTRUCTIONS = {
 # ---------------------------------------------------------------------------
 # 文本提取
 # ---------------------------------------------------------------------------
+def clean_pdf_text(text: str) -> str:
+    """清洗 PDF 提取的文本：去掉邮箱、图片帧标签、多余空行等噪音。"""
+    # 删除邮箱（含花括号包裹的作者邮箱，如 {myc, yyh}@dexmal.com）
+    text = re.sub(r"\{?[\w.,\s+\-]+@[\w.\-]+\.\w+\}?", "", text)
+    # 删除孤立的图片帧/图标签（frame 1、Figure 2、Fig. 3 等）
+    text = re.sub(r"\b(?:frame|figure|fig)\.?\s*\d+\b", "", text, flags=re.IGNORECASE)
+    # 合并 3 个以上连续空行为 2 个
+    text = re.sub(r"\n\s*\n\s*\n+", "\n\n", text)
+    # 去掉每行首尾多余空格
+    text = "\n".join(line.strip() for line in text.split("\n"))
+    return text
+
+
 def extract_pdf_text(pdf_bytes: bytes) -> str:
-    """从 PDF 字节流提取全文。"""
+    """从 PDF 字节流提取全文，并清洗噪音。"""
     reader = PdfReader(io.BytesIO(pdf_bytes))
     parts = []
     for page in reader.pages:
         t = page.extract_text() or ""
         if t.strip():
             parts.append(t)
-    return "\n\n".join(parts)
+    return clean_pdf_text("\n\n".join(parts))
 
 
 def build_user_prompt(text: str) -> str:

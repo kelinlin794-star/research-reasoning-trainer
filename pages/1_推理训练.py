@@ -334,10 +334,17 @@ def render_step(step_id, d):
 def render_source():
     """每一步都能展开查看论文原文，对照 AI 拆解内容验证。"""
     src = paper.get("_source_text", "").strip()
-    if not src:
+    pdf_path = common.get_pdf_path(st.session_state.paper_id)
+    if not src and not pdf_path:
         return
     with st.expander("📄 查看论文原文（对照验证）"):
-        st.text_area("论文原文", src, height=400, key="source_view")
+        if pdf_path:
+            with open(pdf_path, "rb") as f:
+                st.download_button("⬇️ 下载原始 PDF", f.read(),
+                                   file_name=f"{st.session_state.paper_id}.pdf",
+                                   mime="application/pdf", key="source_pdf")
+        if src:
+            st.text_area("论文原文（清洗后文本）", src, height=400, key="source_view")
 
 
 def render_coach():

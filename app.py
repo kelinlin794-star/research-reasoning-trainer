@@ -59,12 +59,14 @@ def render_upload():
                     try:
                         data = parser.parse_paper(uploaded.getvalue(), api_key, style=style_map[style_label])
                         pid = common.save_dynamic_paper(data)
+                        common.save_pdf(pid, uploaded.getvalue())  # 保存原始 PDF，供查看
                         st.success(f"解析成功！论文《{data['meta'].get('title', pid)}》已就绪，可在下方开始训练。")
                     except Exception as e:
                         st.error(f"解析失败：{e}")
 
 
-def render_paper_card(pid, meta, is_dynamic=False, style="mixed"):
+def render_paper_card(pid, meta, is_dynamic=False, style="mixed", category="", categories=None):
+    categories = categories or []
     with st.container(border=True):
         col_l, col_r = st.columns([3, 1])
         with col_l:
@@ -113,6 +115,27 @@ def render_paper_card(pid, meta, is_dynamic=False, style="mixed"):
             if st.button("开始训练", key=f"start_{pid}", type="primary", use_container_width=True):
                 common.start_paper(pid)
                 st.switch_page("pages/1_推理训练.py")
+            if is_dynamic:
+                # 分类（文件夹）：改选即自动保存
+                cat_options = ["未分类"] + [c for c in categories if c]
+                cur = category if category else "未分类"
+                if cur not in cat_options:
+                    cur = "未分类"
+                def _on_cat_change(pid=pid):
+                    new = st.session_state[f"cat_sel_{pid}"]
+                    common.set_paper_category(pid, "" if new == "未分类" else new)
+                st.selectbox("分类", cat_options, index=cat_options.index(cur),
+                             key=f"cat_sel_{pid}", on_change=_on_cat_change, label_visibility="collapsed")
+                # 查看原始 PDF
+                pdf_path = common.get_pdf_path(pid)
+                if pdf_path:
+                    with open(pdf_path, "rb") as f:
+                        st.download_button("📄 查看原始PDF", f.read(), file_name=f"{pid}.pdf",
+                                           mime="application/pdf", key=f"pdf_{pid}", use_container_width=True)
+                # 删除
+                if st.button("🗑 删除", key=f"del_{pid}", use_container_width=True):
+                    common.delete_paper(pid)
+                    st.rerun()
 
 
 def main():
@@ -129,8 +152,28 @@ def main():
 
     st.markdown("### 选择一篇论文开始训练")
     st.caption(f"当前共 {len(papers)} 篇论文。每一篇都走一遍完整的 10 步推理闭环。")
+
+    # 提取所有分类（文件夹）
+    categories = sorted({p.get("category", "") for p in papers if p.get("category", "")})
+
+    # 按分类分组展示
+    from collections import defaultdict
+    groups = defaultdict(list)
     for p in papers:
-        render_paper_card(p["id"], p["meta"], is_dynamic=p.get("dynamic", False), style=p.get("style", "mixed"))
+        groups[p.get("category", "")].append(p)
+
+    def render_group(label, items):
+        st.markdown(f"#### {'📁 ' + label if label else '未分类'}")
+        for p in items:
+            render_paper_card(p["id"], p["meta"], is_dynamic=p.get("dynamic", False),
+                              style=p.get("style", "mixed"), category=p.get("category", ""),
+                              categories=categories)
+
+    if groups.get(""):
+        render_group("", groups[""])
+    for cat in sorted(groups):
+        if cat:
+            render_group(cat, groups[cat])
 
     st.divider()
     st.info(

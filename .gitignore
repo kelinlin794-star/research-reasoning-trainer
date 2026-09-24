@@ -14,3 +14,4 @@ data/uploaded/
 test_restyle.py
 test_full_switch.py
 inject_source.py
+data/pdfs/

@@ -23,6 +23,7 @@ import streamlit as st
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(ROOT, "data")
 UPLOADED_DIR = os.path.join(DATA_DIR, "uploaded")  # 用户上传解析的论文持久化目录
+PDF_DIR = os.path.join(DATA_DIR, "pdfs")  # 用户上传的原始 PDF 持久化目录
 
 # ---------------------------------------------------------------------------
 # 证据分层定义（颜色 = 徽标配色）
@@ -66,14 +67,14 @@ def list_papers():
             if fn.endswith(".json"):
                 with open(os.path.join(DATA_DIR, fn), "r", encoding="utf-8") as f:
                     data = json.load(f)
-                papers[data["id"]] = {"id": data["id"], "meta": data.get("meta", {}), "dynamic": False, "style": data.get("_style", "mixed")}
+                papers[data["id"]] = {"id": data["id"], "meta": data.get("meta", {}), "dynamic": False, "style": data.get("_style", "mixed"), "category": data.get("_category", "")}
     # 上传/切换后的论文（data/uploaded/，同名覆盖预置）
     if os.path.isdir(UPLOADED_DIR):
         for fn in sorted(os.listdir(UPLOADED_DIR)):
             if fn.endswith(".json"):
                 with open(os.path.join(UPLOADED_DIR, fn), "r", encoding="utf-8") as f:
                     data = json.load(f)
-                papers[data["id"]] = {"id": data["id"], "meta": data.get("meta", {}), "dynamic": True, "style": data.get("_style", "mixed")}
+                papers[data["id"]] = {"id": data["id"], "meta": data.get("meta", {}), "dynamic": True, "style": data.get("_style", "mixed"), "category": data.get("_category", "")}
     return list(papers.values())
 
 
@@ -236,6 +237,38 @@ def overwrite_paper(paper_data):
     # 同步内存（覆盖 load 顺序，让语言切换立即生效）
     st.session_state.dynamic_papers[pid] = paper_data
     return pid
+
+
+def save_pdf(pid, pdf_bytes):
+    """保存用户上传的原始 PDF（供查看/下载原版）。"""
+    os.makedirs(PDF_DIR, exist_ok=True)
+    with open(os.path.join(PDF_DIR, f"{pid}.pdf"), "wb") as f:
+        f.write(pdf_bytes)
+
+
+def get_pdf_path(pid):
+    """返回某篇论文原始 PDF 的路径（不存在返回 None）。"""
+    p = os.path.join(PDF_DIR, f"{pid}.pdf")
+    return p if os.path.exists(p) else None
+
+
+def delete_paper(pid):
+    """删除一篇用户上传的论文（JSON + PDF + 会话状态）。"""
+    for p in [os.path.join(UPLOADED_DIR, f"{pid}.json"), os.path.join(PDF_DIR, f"{pid}.pdf")]:
+        if os.path.exists(p):
+            os.remove(p)
+    st.session_state.dynamic_papers.pop(pid, None)
+    if st.session_state.get("paper_id") == pid:
+        st.session_state.paper_id = None
+
+
+def set_paper_category(pid, category):
+    """给论文设置分类（文件夹），持久化到 JSON 的 _category 字段。"""
+    paper = load_paper(pid)
+    if paper is None:
+        return
+    paper["_category"] = category
+    overwrite_paper(paper)
 
 
 def start_paper(paper_id):

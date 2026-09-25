@@ -16,10 +16,21 @@ common.init_state()
 
 
 def render_header():
-    st.title("科研问题推理训练器")
-    st.caption(
-        "不帮你「总结」论文，而是陪你把一篇论文走成一次真正的科研思考。"
-        "固定 10 步工作流，不懂随时问教练。"
+    common.inject_css()
+    st.markdown(
+        '''
+        <div style="background: linear-gradient(135deg, #1A365D 0%, #0E9F8A 100%); padding: 36px 32px; border-radius: 16px; margin-bottom: 20px;">
+            <div style="font-size: 38px; font-weight: 700; color: #FFFFFF; letter-spacing: 1px;">科研问题推理训练器</div>
+            <div style="font-size: 17px; color: #D5EFEA; margin-top: 10px; line-height: 1.7;">不帮你「总结」论文，而是陪你把一篇论文走成一次真正的科研思考。<br>固定 10 步工作流，不懂随时问教练。</div>
+            <div style="margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <span style="background: rgba(255,255,255,0.16); padding: 5px 14px; border-radius: 20px; color: #FFFFFF; font-size: 13px;">🧠 10 步闭环</span>
+                <span style="background: rgba(255,255,255,0.16); padding: 5px 14px; border-radius: 20px; color: #FFFFFF; font-size: 13px;">🔍 去魅</span>
+                <span style="background: rgba(255,255,255,0.16); padding: 5px 14px; border-radius: 20px; color: #FFFFFF; font-size: 13px;">📊 证据分层</span>
+                <span style="background: rgba(255,255,255,0.16); padding: 5px 14px; border-radius: 20px; color: #FFFFFF; font-size: 13px;">💬 问教练</span>
+            </div>
+        </div>
+        ''',
+        unsafe_allow_html=True,
     )
 
 

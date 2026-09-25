@@ -187,6 +187,63 @@ def render_timeline(events):
 
 
 # ---------------------------------------------------------------------------
+# 全局视觉样式（学术科技风）
+# ---------------------------------------------------------------------------
+def inject_css():
+    """注入全局 CSS：学术深蓝 + 科技青绿配色，统一卡片/按钮/进度条/标题。"""
+    st.markdown("""
+    <style>
+    /* 全局字体与背景 */
+    .stApp {
+        font-family: "Segoe UI", "Microsoft YaHei", -apple-system, sans-serif;
+        background: #FFFFFF;
+    }
+    /* 标题颜色（学术深蓝） */
+    h1, h2, h3, h4 { color: #1A365D; letter-spacing: 0.3px; }
+
+    /* 主按钮：深蓝→青绿渐变 */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #1A365D 0%, #0E9F8A 100%);
+        color: #FFFFFF;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    .stButton > button[kind="primary"]:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(14,159,138,0.35);
+    }
+    /* 普通按钮 */
+    .stButton > button {
+        border-radius: 8px;
+        border: 1px solid #E2E8F0;
+    }
+
+    /* 卡片容器圆角 + 轻阴影 */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 12px;
+        border: 1px solid #E8EDF4;
+        box-shadow: 0 2px 8px rgba(26,54,93,0.05);
+    }
+    /* 折叠面板圆角 */
+    [data-testid="stExpander"] {
+        border-radius: 10px;
+        border: 1px solid #E8EDF4;
+    }
+    /* 进度条：深蓝→青绿 */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #1A365D 0%, #0E9F8A 100%);
+    }
+    /* 侧边栏浅色底 */
+    section[data-testid="stSidebar"] {
+        background: #F7F9FC;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
 # 会话状态管理
 # ---------------------------------------------------------------------------
 def init_state():

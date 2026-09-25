@@ -28,6 +28,7 @@ import lineage
 
 st.set_page_config(page_title="推理训练", page_icon="🧠", layout="wide")
 common.init_state()
+common.inject_css()
 
 # ---------------------------------------------------------------------------
 # 前置检查：没有选中论文时引导回首页

@@ -200,7 +200,10 @@ def parse_paper(pdf_bytes: bytes, api_key: str, style: str = "mixed") -> dict:
     """
     text = extract_pdf_text(pdf_bytes)
     if len(text.strip()) < 200:
-        raise ValueError("PDF 文本提取失败或内容过少。请确认是文字版 PDF（扫描图片版暂不支持）。")
+        raise ValueError(
+            "PDF 文本提取失败或内容过少。这通常是「扫描图片版 PDF」（没有文字层）导致的。"
+            "请先用 WPS/Adobe 的 OCR 功能把 PDF 转成「文字版」，或改用文字版 PDF 重新上传。"
+        )
 
     style_inst = STYLE_INSTRUCTIONS.get(style, STYLE_INSTRUCTIONS["mixed"])
     system = SYSTEM_PROMPT + "\n\n## 语言要求\n" + style_inst
